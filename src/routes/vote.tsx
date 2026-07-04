@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Masthead, Colophon } from "@/components/masthead";
 import { ELECTION, POSITIONS, CANDIDATES, candidateAvatar } from "@/lib/election-data";
 
