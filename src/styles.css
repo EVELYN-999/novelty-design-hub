@@ -5,9 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ------------------------------------------------------------------
- * CIVIC LETTERPRESS — design system
- * A paper-and-ink editorial aesthetic married to a cryptographic
- * terminal. Ivory paper, deep ink, oxblood stamp, sealed-record blue.
+ * CIVIC LETTERPRESS v2 — readable, spacious, accessible
+ * Editorial feel preserved, but with a legible type scale, clear
+ * tap targets, and unambiguous hierarchy.
  * ------------------------------------------------------------------ */
 
 @theme inline {
@@ -16,9 +16,9 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
-  --radius-xl: 6px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -52,23 +52,23 @@
 }
 
 :root {
-  --radius: 3px;
+  --radius: 4px;
 
-  /* Paper & ink core palette */
-  --paper: oklch(0.945 0.018 88);          /* ivory */
-  --paper-deep: oklch(0.905 0.024 82);     /* aged margin */
-  --ink: oklch(0.19 0.012 60);             /* deep ink */
-  --ink-soft: oklch(0.36 0.014 55);        /* faded ink */
-  --rule: oklch(0.28 0.014 55 / 0.85);     /* rule line */
-  --stamp: oklch(0.42 0.145 25);           /* oxblood stamp */
+  /* Slightly brighter paper, darker ink for AA contrast */
+  --paper: oklch(0.965 0.012 88);
+  --paper-deep: oklch(0.92 0.02 82);
+  --ink: oklch(0.16 0.012 60);
+  --ink-soft: oklch(0.32 0.014 55);
+  --rule: oklch(0.22 0.014 55 / 0.8);
+  --stamp: oklch(0.42 0.15 25);
   --stamp-soft: oklch(0.55 0.13 27 / 0.7);
-  --seal: oklch(0.32 0.06 240);            /* navy notary seal */
-  --verify: oklch(0.48 0.11 155);          /* verified green */
+  --seal: oklch(0.32 0.06 240);
+  --verify: oklch(0.42 0.13 155);
 
   --background: var(--paper);
   --foreground: var(--ink);
 
-  --card: oklch(0.965 0.012 90);
+  --card: oklch(0.985 0.008 90);
   --card-foreground: var(--ink);
   --popover: var(--paper);
   --popover-foreground: var(--ink);
@@ -82,96 +82,150 @@
   --accent-foreground: var(--paper);
   --destructive: oklch(0.5 0.19 28);
   --destructive-foreground: var(--paper);
-  --border: oklch(0.19 0.012 60 / 0.18);
-  --input: oklch(0.19 0.012 60 / 0.25);
+  --border: oklch(0.16 0.012 60 / 0.22);
+  --input: oklch(0.16 0.012 60 / 0.3);
   --ring: var(--stamp);
 }
 
 @layer base {
   * { border-color: var(--color-border); }
 
+  html { font-size: 17px; }
   html, body { background: var(--paper); color: var(--ink); }
 
   body {
     font-family: var(--font-sans);
     font-feature-settings: "ss01", "cv11";
-    /* Subtle paper texture: overlaid noise + fibre lines */
+    line-height: 1.6;
     background-image:
-      radial-gradient(oklch(0.19 0.012 60 / 0.035) 1px, transparent 1px),
-      radial-gradient(oklch(0.19 0.012 60 / 0.025) 1px, transparent 1px),
-      linear-gradient(180deg, oklch(0.945 0.018 88) 0%, oklch(0.925 0.022 84) 100%);
-    background-size: 3px 3px, 7px 7px, 100% 100%;
-    background-position: 0 0, 1px 2px, 0 0;
+      radial-gradient(oklch(0.16 0.012 60 / 0.025) 1px, transparent 1px),
+      linear-gradient(180deg, oklch(0.965 0.012 88) 0%, oklch(0.95 0.016 84) 100%);
+    background-size: 4px 4px, 100% 100%;
   }
 
-  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.01em; }
+  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.01em; line-height: 1.15; }
+
+  /* Global focus ring — always visible */
+  :focus-visible {
+    outline: 3px solid var(--stamp);
+    outline-offset: 2px;
+  }
 
   ::selection { background: var(--stamp); color: var(--paper); }
 }
 
-/* ---------- Utilities: rules, small caps, stamps, tickets ---------- */
+/* ---------- Rules ---------- */
+@utility rule-thick { border-top: 2px solid var(--ink); }
+@utility rule-hair { border-top: 1px solid oklch(0.16 0.012 60 / 0.28); }
+@utility rule-double { border-top: 3px double var(--ink); }
 
-@utility rule-thick {
-  border-top: 2px solid var(--ink);
-}
-@utility rule-hair {
-  border-top: 1px solid oklch(0.19 0.012 60 / 0.35);
-}
-@utility rule-double {
-  border-top: 3px double var(--ink);
-}
-
+/* ---------- Legible small caps + labels ---------- */
 @utility smallcaps {
   font-variant: all-small-caps;
-  letter-spacing: 0.18em;
-  font-weight: 500;
+  letter-spacing: 0.1em;
+  font-weight: 600;
 }
 
+/* Larger, more readable than before */
 @utility marginalia {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.06em;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
   color: var(--ink-soft);
   text-transform: uppercase;
+  font-weight: 500;
 }
 
 @utility hash-mono {
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   letter-spacing: -0.01em;
   word-break: break-all;
   color: var(--ink-soft);
+  line-height: 1.5;
 }
 
-/* Rubber-stamp effect — used sparingly */
+/* ---------- Buttons: real tap targets ---------- */
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 3rem;
+  padding: 0.85rem 1.5rem;
+  background: var(--ink);
+  color: var(--paper);
+  border: 2px solid var(--ink);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  transition: background 150ms, border-color 150ms, transform 100ms;
+  cursor: pointer;
+}
+@utility btn-primary-hover {
+  background: var(--stamp);
+  border-color: var(--stamp);
+}
+
+@utility btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 3rem;
+  padding: 0.85rem 1.5rem;
+  background: transparent;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background 150ms, color 150ms;
+  cursor: pointer;
+}
+
+@utility btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 1.25rem;
+  background: transparent;
+  color: var(--ink);
+  border: 2px solid oklch(0.16 0.012 60 / 0.3);
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: border-color 150ms, background 150ms;
+  cursor: pointer;
+}
+
+/* ---------- Stamps (used sparingly, decorative) ---------- */
 @utility stamp {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.35rem 0.75rem;
+  padding: 0.4rem 0.85rem;
   border: 2px solid var(--stamp);
   color: var(--stamp);
   font-family: var(--font-display);
   font-style: italic;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  font-size: 0.72rem;
-  transform: rotate(-4deg);
-  background: oklch(0.945 0.018 88 / 0.4);
-  box-shadow: inset 0 0 0 1px oklch(0.945 0.018 88 / 0.4);
-  opacity: 0.92;
+  font-size: 0.85rem;
+  transform: rotate(-3deg);
+  background: oklch(0.965 0.012 88 / 0.5);
 }
 
 @utility stamp-block {
   border: 2px solid var(--stamp);
   color: var(--stamp);
   padding: 1rem 1.25rem;
-  transform: rotate(-2.5deg);
-  background: oklch(0.945 0.018 88 / 0.5);
+  transform: rotate(-2deg);
+  background: oklch(0.965 0.012 88 / 0.6);
 }
 
-/* Perforated ticket edge (for receipts) */
+/* Perforated ticket edge */
 @utility ticket {
   background:
     radial-gradient(circle at 0 8px, transparent 4px, var(--card) 4px) left/12px 16px repeat-y,
@@ -181,30 +235,11 @@
   border-bottom: 1px dashed var(--ink);
 }
 
-/* Hash-chain link ornament */
-@utility chain-link {
-  position: relative;
-}
-@utility chain-link-before {
-  content: "";
-  position: absolute;
-  left: 0.5rem;
-  top: -1rem;
-  bottom: -1rem;
-  width: 1px;
-  background: repeating-linear-gradient(
-    to bottom,
-    var(--ink-soft) 0 2px,
-    transparent 2px 6px
-  );
-}
-
-/* A slight ink-bleed hover for links */
 @utility ink-link {
   color: var(--ink);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
-  text-decoration-color: oklch(0.19 0.012 60 / 0.4);
+  text-decoration-color: oklch(0.16 0.012 60 / 0.45);
   transition: text-decoration-color 200ms, color 200ms;
 }
