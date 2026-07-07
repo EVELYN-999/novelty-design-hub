@@ -57,20 +57,11 @@ export function Masthead({ compact = false }: { compact?: boolean }) {
                 key={item.to}
                 to={item.to}
                 className="relative px-5 py-4 text-base font-medium text-ink hover:text-stamp transition-colors"
-                activeProps={{
-                  className:
-                    "relative px-5 py-4 text-base font-semibold text-stamp",
-                }}
+                activeProps={{ className: "text-stamp font-semibold [&_.nav-underline]:opacity-100" }}
                 activeOptions={{ exact: item.to === "/" }}
               >
-                {({ isActive }) => (
-                  <>
-                    <span>{item.label}</span>
-                    {isActive && (
-                      <span className="absolute left-3 right-3 -bottom-[2px] h-[3px] bg-stamp" />
-                    )}
-                  </>
-                )}
+                <span>{item.label}</span>
+                <span className="nav-underline absolute left-3 right-3 -bottom-[2px] h-[3px] bg-stamp opacity-0" />
               </Link>
             ))}
           </div>
