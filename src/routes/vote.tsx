@@ -463,6 +463,3 @@ function ErrorLine({ err }: { err: unknown }) {
     </div>
   );
 }
-
-// Silence unused-import warning if ELECTION is not read in this file.
-void ELECTION;
