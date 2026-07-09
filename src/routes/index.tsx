@@ -61,7 +61,7 @@ function FrontPage() {
           {/* Stats row */}
           <div className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-4 border-y-2 border-ink py-8">
             <Stat n={castCount.toString()} l="Ballots cast" />
-            <Stat n={ELECTION.eligible_voters.toLocaleString()} l="Eligible voters" />
+            <Stat n={eligible.toLocaleString()} l="Eligible voters" />
             <Stat n={`${turnout}%`} l="Turnout" />
             <Stat n={POSITIONS.length.toString()} l="Positions" />
           </div>
