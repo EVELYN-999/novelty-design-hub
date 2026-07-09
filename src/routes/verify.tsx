@@ -69,7 +69,7 @@ function VerifyPage() {
     setRunning(true);
     setRecount(null);
     const entries = ledgerQ.data.entries as Entry[];
-    let prev = ledgerQ.data.genesis;
+    let prev: string = ledgerQ.data.genesis;
     let breaks = 0;
     for (const e of entries) {
       if (e.prev_hash !== prev) breaks++;
