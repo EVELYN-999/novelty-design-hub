@@ -174,8 +174,6 @@ export const castBallot = createServerFn({ method: "POST" })
 
 // ---------- Public reads (via publishable client + anon SELECT policy) ----------
 function publicClient() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createClient } = require("@supabase/supabase-js") as typeof import("@supabase/supabase-js");
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
     auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
   });
