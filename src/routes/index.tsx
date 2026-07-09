@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, ShieldCheck, FileText, Vote, ScrollText } from "lucide-react";
 import { Masthead, Colophon } from "@/components/masthead";
-import { ELECTION, POSITIONS, CANDIDATES, LEDGER, candidateAvatar } from "@/lib/election-data";
+import { ELECTION, POSITIONS, CANDIDATES, candidateAvatar } from "@/lib/election-data";
+import { getStats } from "@/lib/election.functions";
 
 export const Route = createFileRoute("/")({
   component: FrontPage,
@@ -14,8 +17,15 @@ export const Route = createFileRoute("/")({
 });
 
 function FrontPage() {
-  const castCount = LEDGER.length;
-  const turnout = ((castCount / ELECTION.eligible_voters) * 100).toFixed(1);
+  const getStatsFn = useServerFn(getStats);
+  const stats = useQuery({
+    queryKey: ["stats"],
+    queryFn: () => getStatsFn(),
+    refetchInterval: 10000,
+  });
+  const castCount = stats.data?.castCount ?? 0;
+  const eligible = stats.data?.eligible ?? ELECTION.eligible_voters;
+  const turnout = eligible > 0 ? ((castCount / eligible) * 100).toFixed(1) : "0.0";
 
   return (
     <div className="min-h-screen">
