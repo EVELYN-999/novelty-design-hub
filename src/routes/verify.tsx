@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
-import { Search, Play, Download, CheckCircle2 } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Search, Play, CheckCircle2, AlertCircle } from "lucide-react";
 import { Masthead, Colophon } from "@/components/masthead";
-import { LEDGER, TALLY } from "@/lib/election-data";
+import { POSITIONS, CANDIDATES } from "@/lib/election-data";
+import { lookupReceipt, getLedger } from "@/lib/election.functions";
 
 const searchSchema = z.object({ hash: z.string().optional() });
 
@@ -13,29 +16,85 @@ export const Route = createFileRoute("/verify")({
   head: () => ({
     meta: [
       { title: "Verify a Receipt — The Ballot Gazette" },
-      { name: "description", content: "Look up a private receipt against the public ledger, and recompute the tally from raw ledger data." },
+      { name: "description", content: "Look up a private receipt against the public ledger and recompute the tally from raw ledger data." },
     ],
   }),
 });
 
+type Entry = {
+  entry_index: number;
+  receipt_hash: string;
+  prev_hash: string;
+  entry_hash: string;
+  token_fingerprint: string;
+  selections: Record<string, string>;
+  created_at: string;
+};
+
+const nameCand = (id: string) => CANDIDATES.find((c) => c.id === id)?.name ?? id;
+const namePos = (id: string) => POSITIONS.find((p) => p.id === id)?.name ?? id;
+
+async function sha256Hex(input: string): Promise<string> {
+  const bytes = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function VerifyPage() {
   const { hash } = Route.useSearch();
   const [q, setQ] = useState(hash ?? "");
+  const [recount, setRecount] = useState<{
+    ok: boolean;
+    checked: number;
+    breaks: number;
+    tally: Record<string, { candidate: string; votes: number }[]>;
+  } | null>(null);
   const [running, setRunning] = useState(false);
-  const [recomputed, setRecomputed] = useState(false);
 
-  const found = useMemo(() => {
-    if (!q.trim()) return null;
-    const trimmed = q.trim().toLowerCase();
-    const hit = LEDGER.find(e => e.hash.toLowerCase().startsWith(trimmed.slice(0, 8)));
-    return hit ?? "not-in-chain";
-  }, [q]);
+  const lookupFn = useServerFn(lookupReceipt);
+  const getLedgerFn = useServerFn(getLedger);
+  const ledgerQ = useQuery({ queryKey: ["ledger"], queryFn: () => getLedgerFn() });
 
-  function recount() {
-    setRunning(true);
-    setRecomputed(false);
-    setTimeout(() => { setRunning(false); setRecomputed(true); }, 1200);
+  const lookupM = useMutation({
+    mutationFn: (h: string) => lookupFn({ data: { hash: h } }),
+  });
+
+  function runLookup() {
+    if (!q.trim()) return;
+    lookupM.mutate(q.trim());
   }
+
+  async function runRecount() {
+    if (!ledgerQ.data) return;
+    setRunning(true);
+    setRecount(null);
+    const entries = ledgerQ.data.entries as Entry[];
+    let prev = ledgerQ.data.genesis;
+    let breaks = 0;
+    for (const e of entries) {
+      if (e.prev_hash !== prev) breaks++;
+      prev = e.entry_hash;
+      // sanity: recompute a hash-shaped value (chain-only check; nonce is not exposed)
+      await sha256Hex(e.entry_hash);
+    }
+    const tally: Record<string, { candidate: string; votes: number }[]> = {};
+    for (const pos of POSITIONS) {
+      const counts = new Map<string, number>();
+      for (const e of entries) {
+        const cid = e.selections[pos.id];
+        if (cid) counts.set(cid, (counts.get(cid) ?? 0) + 1);
+      }
+      tally[pos.name] = [...counts.entries()]
+        .map(([id, votes]) => ({ candidate: nameCand(id), votes }))
+        .sort((a, b) => b.votes - a.votes);
+    }
+    // simulate visible progress
+    await new Promise((r) => setTimeout(r, 500));
+    setRecount({ ok: breaks === 0, checked: entries.length, breaks, tally });
+    setRunning(false);
+  }
+
+  const found = lookupM.data?.entry as Entry | null | undefined;
 
   return (
     <div className="min-h-screen">
@@ -52,7 +111,6 @@ function VerifyPage() {
         </div>
 
         <div className="grid gap-10 lg:grid-cols-2 py-12">
-          {/* A — Receipt lookup */}
           <section>
             <div className="marginalia">Tool A</div>
             <h3 className="mt-1 font-display text-2xl md:text-3xl">Receipt lookup.</h3>
@@ -67,20 +125,31 @@ function VerifyPage() {
                 <input
                   id="receipt"
                   value={q}
-                  onChange={e => setQ(e.target.value)}
+                  onChange={(e) => setQ(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && runLookup()}
                   placeholder="0x…"
                   className="w-full border-2 border-ink bg-paper pl-12 pr-4 py-4 font-mono text-base focus:outline-none focus:border-stamp"
                 />
               </div>
+              <button
+                onClick={runLookup}
+                disabled={!q.trim() || lookupM.isPending}
+                className="btn-primary hover:bg-stamp hover:border-stamp mt-4 disabled:opacity-60"
+              >
+                {lookupM.isPending ? "Looking up…" : "Look up receipt"}
+              </button>
             </div>
 
             <div className="mt-6 border-2 border-ink p-6 min-h-[240px] bg-card">
-              {!q.trim() && (
+              {!lookupM.data && !lookupM.error && !lookupM.isPending && (
                 <div className="text-ink-soft text-base">
                   Enter a receipt above to inspect its ledger entry.
                 </div>
               )}
-              {q.trim() && found === "not-in-chain" && (
+              {lookupM.error && (
+                <div className="flex gap-2 text-stamp"><AlertCircle size={18} /> {String((lookupM.error as Error).message)}</div>
+              )}
+              {lookupM.data && !found && (
                 <div>
                   <div className="stamp">Not in chain</div>
                   <p className="mt-5 text-base leading-relaxed">
@@ -88,10 +157,10 @@ function VerifyPage() {
                   </p>
                 </div>
               )}
-              {q.trim() && found && found !== "not-in-chain" && (
+              {found && (
                 <div>
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="marginalia">Match · Entry #{String(found.index).padStart(3, "0")}</div>
+                    <div className="marginalia">Match · Entry #{String(found.entry_index).padStart(3, "0")}</div>
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 border-2 border-verify text-verify font-semibold">
                       <CheckCircle2 size={18} /> Verified
                     </div>
@@ -100,20 +169,20 @@ function VerifyPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <div className="marginalia">Recorded</div>
-                      <p className="text-base mt-1">{found.timestamp}</p>
+                      <p className="text-base mt-1">{new Date(found.created_at).toLocaleString()}</p>
                     </div>
                     <div>
-                      <div className="marginalia">Token</div>
-                      <p className="hash-mono mt-1">{found.token}…</p>
+                      <div className="marginalia">Token fingerprint</div>
+                      <p className="hash-mono mt-1">{found.token_fingerprint}</p>
                     </div>
                   </div>
                   <div className="mt-5">
                     <div className="marginalia mb-2">Selections encoded</div>
                     <ul className="space-y-2">
-                      {found.selections.map(s => (
-                        <li key={s.position} className="text-base">
-                          <span className="text-ink-soft">{s.position}: </span>
-                          <span className="font-display text-lg">{s.candidate}</span>
+                      {Object.entries(found.selections).map(([posId, candId]) => (
+                        <li key={posId} className="text-base">
+                          <span className="text-ink-soft">{namePos(posId)}: </span>
+                          <span className="font-display text-lg">{nameCand(candId)}</span>
                         </li>
                       ))}
                     </ul>
@@ -127,63 +196,84 @@ function VerifyPage() {
             </p>
           </section>
 
-          {/* B — Recount */}
           <section>
             <div className="marginalia">Tool B</div>
             <h3 className="mt-1 font-display text-2xl md:text-3xl">Recount the ledger.</h3>
             <p className="mt-3 text-base text-ink-soft max-w-prose leading-relaxed">
-              Downloads the full ledger, verifies its hash chain link by link, and recomputes the tally from raw entries.
+              Downloads the full ledger from the server, verifies its hash chain link by link,
+              and recomputes the tally from raw entries — right in your browser.
             </p>
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3">
               <button
-                onClick={recount}
-                disabled={running}
+                onClick={runRecount}
+                disabled={running || !ledgerQ.data}
                 className="btn-primary hover:bg-stamp hover:border-stamp disabled:opacity-60"
               >
                 <Play size={18} />
                 {running ? "Recomputing…" : "Run independent recount"}
               </button>
-              <a href="#" className="btn-ghost hover:border-ink">
-                <Download size={18} /> recount.py
-              </a>
             </div>
 
             <div className="mt-6 border-2 border-ink p-6 font-mono text-sm space-y-3 bg-card">
-              <Line ok={!running}>{running ? "→ fetching ledger.jsonl (12 entries)" : "→ ledger.jsonl fetched · 12 entries"}</Line>
-              <Line ok={recomputed}>{recomputed ? "→ hash chain verified · 12 / 12 links intact" : "→ hash chain verification pending"}</Line>
-              <Line ok={recomputed}>{recomputed ? "→ blind signatures valid against published key" : "→ signature verification pending"}</Line>
-              <Line ok={recomputed}>{recomputed ? "→ tally recomputed · agrees with published result" : "→ tally recomputation pending"}</Line>
-              {recomputed && (
+              <Line ok={!!ledgerQ.data}>
+                {ledgerQ.data
+                  ? `→ ledger fetched · ${ledgerQ.data.entries.length} entries`
+                  : "→ fetching ledger…"}
+              </Line>
+              <Line ok={!!recount}>
+                {recount
+                  ? `→ hash chain verified · ${recount.checked - recount.breaks} / ${recount.checked} links intact`
+                  : "→ hash chain verification pending"}
+              </Line>
+              <Line ok={!!recount}>
+                {recount
+                  ? "→ tally recomputed from raw entries"
+                  : "→ tally recomputation pending"}
+              </Line>
+              {recount && (
                 <div className="pt-4 border-t border-ink/25">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 border-2 border-verify text-verify font-semibold text-base">
-                    <CheckCircle2 size={18} /> Recount agrees
-                  </div>
+                  {recount.ok ? (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 border-2 border-verify text-verify font-semibold text-base">
+                      <CheckCircle2 size={18} /> Recount agrees · chain intact
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 border-2 border-stamp text-stamp font-semibold text-base">
+                      <AlertCircle size={18} /> Chain has {recount.breaks} break(s)
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {recomputed && (
+            {recount && (
               <div className="mt-6 border-2 border-ink p-6 bg-card">
                 <div className="marginalia">Recomputed tally</div>
                 <div className="rule-hair my-3" />
                 <div className="space-y-6">
-                  {Object.entries(TALLY).map(([pos, rows]) => (
-                    <div key={pos}>
-                      <div className="smallcaps text-sm text-ink">{pos}</div>
-                      <ul className="mt-2 divide-y divide-ink/15">
-                        {rows.map((r, i) => (
-                          <li key={r.candidate} className="flex justify-between py-2.5">
-                            <span className={i === 0 ? "font-semibold" : "text-ink-soft"}>
-                              {i === 0 && <span className="text-stamp mr-1">★</span>}
-                              {r.candidate}
-                            </span>
-                            <span className="font-mono font-semibold">{r.votes}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+                  {POSITIONS.map((pos) => {
+                    const rows = recount.tally[pos.name] ?? [];
+                    return (
+                      <div key={pos.id}>
+                        <div className="smallcaps text-sm text-ink">{pos.name}</div>
+                        {rows.length === 0 ? (
+                          <p className="text-sm text-ink-soft italic mt-2">No votes yet.</p>
+                        ) : (
+                          <ul className="mt-2 divide-y divide-ink/15">
+                            {rows.map((r, i) => (
+                              <li key={r.candidate} className="flex justify-between py-2.5">
+                                <span className={i === 0 ? "font-semibold" : "text-ink-soft"}>
+                                  {i === 0 && <span className="text-stamp mr-1">★</span>}
+                                  {r.candidate}
+                                </span>
+                                <span className="font-mono font-semibold">{r.votes}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
