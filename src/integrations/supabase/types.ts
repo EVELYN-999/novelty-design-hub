@@ -14,7 +14,130 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ballots: {
+        Row: {
+          created_at: string
+          entry_hash: string
+          entry_index: number
+          prev_hash: string
+          receipt_hash: string
+          selections: Json
+          token_fingerprint: string
+        }
+        Insert: {
+          created_at?: string
+          entry_hash: string
+          entry_index?: number
+          prev_hash: string
+          receipt_hash: string
+          selections: Json
+          token_fingerprint: string
+        }
+        Update: {
+          created_at?: string
+          entry_hash?: string
+          entry_index?: number
+          prev_hash?: string
+          receipt_hash?: string
+          selections?: Json
+          token_fingerprint?: string
+        }
+        Relationships: []
+      }
+      cast_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          token: string
+          used: boolean
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          token: string
+          used?: boolean
+          voter_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          token?: string
+          used?: boolean
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cast_tokens_voter_id_fkey"
+            columns: ["voter_id"]
+            isOneToOne: false
+            referencedRelation: "voters"
+            referencedColumns: ["voter_id"]
+          },
+        ]
+      }
+      otps: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          used: boolean
+          voter_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          used?: boolean
+          voter_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          used?: boolean
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "otps_voter_id_fkey"
+            columns: ["voter_id"]
+            isOneToOne: false
+            referencedRelation: "voters"
+            referencedColumns: ["voter_id"]
+          },
+        ]
+      }
+      voters: {
+        Row: {
+          created_at: string
+          display_name: string
+          has_voted: boolean
+          phone_mask: string
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          has_voted?: boolean
+          phone_mask: string
+          voter_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          has_voted?: boolean
+          phone_mask?: string
+          voter_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
