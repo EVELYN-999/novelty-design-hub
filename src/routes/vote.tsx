@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, ArrowLeft, Check, Copy, ShieldCheck } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { ArrowRight, ArrowLeft, Check, Copy, ShieldCheck, AlertCircle, KeyRound } from "lucide-react";
 import { Masthead, Colophon } from "@/components/masthead";
-import { ELECTION, POSITIONS, CANDIDATES, candidateAvatar } from "@/lib/election-data";
+import { POSITIONS, CANDIDATES, candidateAvatar } from "@/lib/election-data";
+import { requestOtp, verifyOtp, castBallot } from "@/lib/election.functions";
 
 export const Route = createFileRoute("/vote")({
   component: VotePage,
@@ -29,30 +32,53 @@ function VotePage() {
   const [step, setStep] = useState<Step>("id");
   const [voterId, setVoterId] = useState("");
   const [phoneMask, setPhoneMask] = useState("");
+  const [devCode, setDevCode] = useState("");
   const [otp, setOtp] = useState("");
+  const [castToken, setCastToken] = useState("");
   const [selections, setSelections] = useState<Record<string, string>>({});
-  const [receipt, setReceipt] = useState<string>("");
-  const [token, setToken] = useState<string>("");
+  const [receipt, setReceipt] = useState<{
+    receiptHash: string;
+    entryHash: string;
+    prevHash: string;
+    tokenFingerprint: string;
+    index: number;
+    timestamp: string;
+  } | null>(null);
 
-  const allSelected = POSITIONS.every(p => selections[p.id]);
-  const currentIdx = STEPS.findIndex(s => s.key === step);
+  const reqOtpFn = useServerFn(requestOtp);
+  const verifyFn = useServerFn(verifyOtp);
+  const castFn = useServerFn(castBallot);
 
-  function requestOtp() {
-    if (!voterId.trim()) return;
-    setPhoneMask("+44 ••• ••• ••42");
-    setStep("otp");
-  }
-  function verifyOtp() {
-    if (otp.length !== 6) return;
-    setStep("ballot");
-  }
-  function issueTokenAndCast() {
-    const rand = () => Math.floor(Math.random() * 16).toString(16);
-    const hex = (n: number) => Array.from({ length: n }, rand).join("");
-    setToken("bsig_" + hex(28));
-    setReceipt("0x" + hex(40));
+  const reqOtpM = useMutation({
+    mutationFn: (vid: string) => reqOtpFn({ data: { voterId: vid } }),
+    onSuccess: (res) => {
+      setPhoneMask(res.phoneMask);
+      setDevCode(res.devCode);
+      setStep("otp");
+    },
+  });
+  const verifyM = useMutation({
+    mutationFn: (args: { voterId: string; code: string }) => verifyFn({ data: args }),
+    onSuccess: (res) => {
+      setCastToken(res.castToken);
+      setStep("ballot");
+    },
+  });
+  const castM = useMutation({
+    mutationFn: (args: { castToken: string; selections: Record<string, string> }) =>
+      castFn({ data: args }),
+    onSuccess: (res) => {
+      setReceipt(res);
+      setStep("receipt");
+    },
+  });
+
+  const allSelected = POSITIONS.every((p) => selections[p.id]);
+  const currentIdx = STEPS.findIndex((s) => s.key === step);
+
+  function doCast() {
     setStep("cast");
-    setTimeout(() => setStep("receipt"), 1400);
+    castM.mutate({ castToken, selections });
   }
 
   return (
@@ -60,7 +86,6 @@ function VotePage() {
       <Masthead compact />
 
       <main className="mx-auto max-w-[1000px] px-5 lg:px-10">
-        {/* Page heading */}
         <div className="py-10 border-b-2 border-ink">
           <div className="marginalia">Polling Room</div>
           <h2 className="mt-2 font-display text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.05]">
@@ -71,7 +96,6 @@ function VotePage() {
           </p>
         </div>
 
-        {/* Horizontal stepper */}
         <div className="py-6 overflow-x-auto">
           <ol className="flex items-center gap-2 min-w-max">
             {STEPS.map((s, i) => {
@@ -100,31 +124,38 @@ function VotePage() {
           </ol>
         </div>
 
-        {/* Step content */}
         <section className="py-8 pb-20">
           {step === "id" && (
             <StepShell number="01" title="Present your voter identification.">
               <p className="text-lg text-ink-soft leading-relaxed max-w-2xl">
-                Enter the voter identifier printed on your Society card. We will send a one-time code to the
-                telephone number on file — never to a number typed here.
+                Enter the voter identifier printed on your Society card. A one-time code will be issued
+                to the number on your record.
               </p>
-              <div className="mt-8 max-w-lg">
+              <div className="mt-6 border-2 border-ink/25 bg-card p-4 max-w-lg">
+                <div className="marginalia">Demo register</div>
+                <p className="text-sm text-ink-soft mt-1 leading-relaxed">
+                  Twenty test voters are pre-registered as <span className="font-mono">HS-2024-0001</span> through
+                  {" "}<span className="font-mono">HS-2024-0020</span>. Each may vote once.
+                </p>
+              </div>
+              <div className="mt-6 max-w-lg">
                 <label htmlFor="voter-id" className="block text-base font-semibold mb-2">Voter ID</label>
                 <input
                   id="voter-id"
                   autoFocus
                   value={voterId}
-                  onChange={e => setVoterId(e.target.value.toUpperCase())}
-                  placeholder="HS-2024-••••"
+                  onChange={(e) => setVoterId(e.target.value.toUpperCase())}
+                  placeholder="HS-2024-0001"
                   className="w-full border-2 border-ink bg-paper px-4 py-4 font-mono text-xl tracking-wider focus:outline-none focus:border-stamp"
                 />
                 <p className="marginalia mt-3">Rate-limited to 3 requests per 15 minutes.</p>
+                <ErrorLine err={reqOtpM.error} />
                 <button
-                  onClick={requestOtp}
-                  disabled={!voterId.trim()}
+                  onClick={() => reqOtpM.mutate(voterId.trim())}
+                  disabled={!voterId.trim() || reqOtpM.isPending}
                   className="btn-primary hover:bg-stamp hover:border-stamp disabled:opacity-40 disabled:cursor-not-allowed mt-6 w-full"
                 >
-                  Request one-time code
+                  {reqOtpM.isPending ? "Issuing code…" : "Request one-time code"}
                   <ArrowRight size={18} />
                 </button>
               </div>
@@ -137,28 +168,39 @@ function VotePage() {
                 A six-digit code has been dispatched to <strong className="text-ink">{phoneMask}</strong>.
                 It expires in five minutes and may be used exactly once.
               </p>
-              <div className="mt-8 max-w-lg">
+              {devCode && (
+                <div className="mt-5 border-2 border-stamp bg-stamp/5 p-4 max-w-lg flex gap-3">
+                  <KeyRound size={20} className="text-stamp shrink-0 mt-0.5" />
+                  <div>
+                    <div className="marginalia text-stamp">Demo mode · SMS not wired</div>
+                    <p className="mt-1 text-base">
+                      Your code is <span className="font-mono font-bold text-xl">{devCode}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="mt-6 max-w-lg">
                 <label htmlFor="otp" className="block text-base font-semibold mb-2">One-time code</label>
                 <input
                   id="otp"
                   autoFocus
                   inputMode="numeric"
                   value={otp}
-                  onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="000000"
                   className="w-full border-2 border-ink bg-paper px-4 py-5 font-mono text-4xl text-center tracking-[0.4em] focus:outline-none focus:border-stamp"
                 />
-                <p className="marginalia mt-3">For this demo, use any six digits (e.g. 000000).</p>
+                <ErrorLine err={verifyM.error} />
                 <div className="mt-6 flex flex-col sm:flex-row gap-3">
                   <button onClick={() => setStep("id")} className="btn-ghost hover:border-ink flex-1">
                     <ArrowLeft size={18} /> Change ID
                   </button>
                   <button
-                    onClick={verifyOtp}
-                    disabled={otp.length !== 6}
+                    onClick={() => verifyM.mutate({ voterId, code: otp })}
+                    disabled={otp.length !== 6 || verifyM.isPending}
                     className="btn-primary hover:bg-stamp hover:border-stamp disabled:opacity-40 disabled:cursor-not-allowed flex-[2]"
                   >
-                    Verify & proceed <ArrowRight size={18} />
+                    {verifyM.isPending ? "Verifying…" : "Verify & proceed"} <ArrowRight size={18} />
                   </button>
                 </div>
               </div>
@@ -174,7 +216,7 @@ function VotePage() {
 
               <div className="mt-10 space-y-12">
                 {POSITIONS.map((pos, i) => {
-                  const cands = CANDIDATES.filter(c => c.position_id === pos.id)
+                  const cands = CANDIDATES.filter((c) => c.position_id === pos.id)
                     .sort((a, b) => a.name.localeCompare(b.name));
                   const marked = !!selections[pos.id];
                   return (
@@ -193,7 +235,7 @@ function VotePage() {
                         </span>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {cands.map(c => {
+                        {cands.map((c) => {
                           const active = selections[pos.id] === c.id;
                           return (
                             <label
@@ -209,13 +251,13 @@ function VotePage() {
                                 name={pos.id}
                                 className="sr-only"
                                 checked={active}
-                                onChange={() => setSelections(s => ({ ...s, [pos.id]: c.id }))}
+                                onChange={() => setSelections((s) => ({ ...s, [pos.id]: c.id }))}
                               />
                               <div
                                 className="h-14 w-14 shrink-0 border-2 border-ink flex items-center justify-center font-display text-lg text-paper"
                                 style={{ background: candidateAvatar(c.photo_hue) }}
                               >
-                                {c.name.split(" ").map(n => n[0]).join("")}
+                                {c.name.split(" ").map((n) => n[0]).join("")}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="font-display text-lg leading-tight">{c.name}</div>
@@ -264,8 +306,8 @@ function VotePage() {
                 <div className="marginalia">Ballot for casting</div>
                 <div className="rule-hair my-4" />
                 <dl className="divide-y divide-ink/20">
-                  {POSITIONS.map(p => {
-                    const c = CANDIDATES.find(c => c.id === selections[p.id])!;
+                  {POSITIONS.map((p) => {
+                    const c = CANDIDATES.find((c) => c.id === selections[p.id])!;
                     return (
                       <div key={p.id} className="grid grid-cols-1 sm:grid-cols-3 gap-2 py-4">
                         <dt className="smallcaps text-sm text-ink-soft">{p.name}</dt>
@@ -276,15 +318,18 @@ function VotePage() {
                 </dl>
               </div>
 
+              <ErrorLine err={castM.error} />
+
               <div className="mt-6 flex flex-col sm:flex-row gap-3 max-w-2xl">
                 <button onClick={() => setStep("ballot")} className="btn-ghost hover:border-ink">
                   <ArrowLeft size={18} /> Amend selections
                 </button>
                 <button
-                  onClick={issueTokenAndCast}
-                  className="btn-primary hover:bg-ink hover:border-ink flex-1 bg-stamp border-stamp"
+                  onClick={doCast}
+                  disabled={castM.isPending}
+                  className="btn-primary hover:bg-ink hover:border-ink flex-1 bg-stamp border-stamp disabled:opacity-60"
                 >
-                  Cast the ballot · Final <ArrowRight size={18} />
+                  {castM.isPending ? "Casting…" : "Cast the ballot · Final"} <ArrowRight size={18} />
                 </button>
               </div>
             </StepShell>
@@ -293,16 +338,16 @@ function VotePage() {
           {step === "cast" && (
             <StepShell number="05" title="Signing, sealing, appending.">
               <div className="mt-8 space-y-3 max-w-xl font-mono text-base">
-                <PressLine>Blinding token client-side…</PressLine>
-                <PressLine>Requesting blind signature from returning officer…</PressLine>
-                <PressLine>Unblinding · producing anonymous signed token…</PressLine>
-                <PressLine>Submitting selections via anonymous channel…</PressLine>
-                <PressLine>Appending to ledger · linking to previous hash…</PressLine>
+                <PressLine>Consuming single-use cast token…</PressLine>
+                <PressLine>Fetching previous ledger hash…</PressLine>
+                <PressLine>Computing entry hash · SHA-256(prev ‖ selections ‖ nonce)…</PressLine>
+                <PressLine>Appending to public ledger…</PressLine>
+                <PressLine>Issuing receipt…</PressLine>
               </div>
             </StepShell>
           )}
 
-          {step === "receipt" && (
+          {step === "receipt" && receipt && (
             <StepShell number="06" title="Your receipt.">
               <p className="text-lg text-ink-soft leading-relaxed max-w-2xl">
                 Save this receipt. It is the only artifact linking you to your ballot — and only you can
@@ -315,29 +360,29 @@ function VotePage() {
                     <div>
                       <div className="marginalia">Receipt of Casting</div>
                       <h4 className="font-display text-2xl md:text-3xl italic mt-1">Ballot recorded.</h4>
-                      <p className="marginalia mt-2">Annual Election MMXXVI</p>
+                      <p className="marginalia mt-2">Entry #{String(receipt.index).padStart(3, "0")}</p>
                     </div>
                     <div className="stamp-block text-center">
                       <div className="font-display italic text-lg">Cast</div>
-                      <div className="marginalia">07 Jul · 10:04</div>
+                      <div className="marginalia">{new Date(receipt.timestamp).toLocaleString()}</div>
                     </div>
                   </div>
 
                   <div className="rule-hair my-6" />
 
                   <div className="grid gap-5 sm:grid-cols-2">
-                    <ReceiptField label="Receipt hash" value={receipt} />
-                    <ReceiptField label="Anonymous token" value={token} />
-                    <ReceiptField label="Prev. ledger hash" value={ELECTION.ballot_hash.slice(0, 22) + "…"} />
-                    <ReceiptField label="Signing key" value={ELECTION.signing_key_fp} />
+                    <ReceiptField label="Receipt hash" value={receipt.receiptHash} />
+                    <ReceiptField label="Entry hash" value={receipt.entryHash} />
+                    <ReceiptField label="Prev. ledger hash" value={receipt.prevHash} />
+                    <ReceiptField label="Token fingerprint" value={receipt.tokenFingerprint} />
                   </div>
 
                   <div className="rule-hair my-6" />
 
                   <div className="marginalia">Selections encoded within</div>
                   <ul className="mt-3 grid gap-2 sm:grid-cols-3">
-                    {POSITIONS.map(p => {
-                      const c = CANDIDATES.find(c => c.id === selections[p.id])!;
+                    {POSITIONS.map((p) => {
+                      const c = CANDIDATES.find((c) => c.id === selections[p.id])!;
                       return (
                         <li key={p.id} className="text-base">
                           <div className="text-ink-soft text-sm">{p.name}</div>
@@ -350,14 +395,14 @@ function VotePage() {
 
                 <div className="mt-6 flex flex-wrap gap-3">
                   <button
-                    onClick={() => navigator.clipboard?.writeText(receipt)}
+                    onClick={() => navigator.clipboard?.writeText(receipt.receiptHash)}
                     className="btn-secondary hover:bg-ink hover:text-paper"
                   >
                     <Copy size={18} /> Copy receipt hash
                   </button>
                   <Link
                     to="/verify"
-                    search={{ hash: receipt }}
+                    search={{ hash: receipt.receiptHash }}
                     className="btn-primary hover:bg-stamp hover:border-stamp"
                   >
                     <ShieldCheck size={18} /> Verify against ledger
@@ -390,20 +435,31 @@ function StepShell({
   );
 }
 
+function ReceiptField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="marginalia">{label}</div>
+      <p className="font-mono text-sm break-all mt-1">{value}</p>
+    </div>
+  );
+}
+
 function PressLine({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="inline-block h-2.5 w-2.5 rounded-full bg-stamp animate-pulse" />
+      <span className="h-2 w-2 bg-stamp animate-pulse" />
       <span>{children}</span>
     </div>
   );
 }
 
-function ReceiptField({ label, value }: { label: string; value: string }) {
+function ErrorLine({ err }: { err: unknown }) {
+  if (!err) return null;
+  const msg = err instanceof Error ? err.message : String(err);
   return (
-    <div>
-      <div className="marginalia">{label}</div>
-      <p className="hash-mono mt-1">{value}</p>
+    <div className="mt-4 flex gap-2 items-start text-stamp text-sm">
+      <AlertCircle size={16} className="mt-0.5 shrink-0" />
+      <span>{msg}</span>
     </div>
   );
 }
