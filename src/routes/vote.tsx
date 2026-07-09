@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, ArrowLeft, Check, Copy, ShieldCheck, AlertCircle, KeyRound } from "lucide-react";
 import { Masthead, Colophon } from "@/components/masthead";
-import { ELECTION, POSITIONS, CANDIDATES, candidateAvatar } from "@/lib/election-data";
+import { POSITIONS, CANDIDATES, candidateAvatar } from "@/lib/election-data";
 import { requestOtp, verifyOtp, castBallot } from "@/lib/election.functions";
 
 export const Route = createFileRoute("/vote")({
