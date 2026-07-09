@@ -204,11 +204,10 @@ export const lookupReceipt = createServerFn({ method: "POST" })
   });
 
 export const getStats = createServerFn({ method: "GET" }).handler(async () => {
-  const supabase = publicClient();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const [{ count: castCount }, { count: eligible }] = await Promise.all([
-    supabase.from("ballots").select("entry_index", { count: "exact", head: true }),
-    supabase.from("voters").select("voter_id", { count: "exact", head: true }),
+    supabaseAdmin.from("ballots").select("entry_index", { count: "exact", head: true }),
+    supabaseAdmin.from("voters").select("voter_id", { count: "exact", head: true }),
   ]);
-  // voters table is service-role only; eligible fallback:
   return { castCount: castCount ?? 0, eligible: eligible ?? 0 };
 });
