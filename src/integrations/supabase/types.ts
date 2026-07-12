@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          actor: string
+          created_at: string
+          detail: Json
+          id: string
+          target: string | null
+        }
+        Insert: {
+          action: string
+          actor: string
+          created_at?: string
+          detail?: Json
+          id?: string
+          target?: string | null
+        }
+        Update: {
+          action?: string
+          actor?: string
+          created_at?: string
+          detail?: Json
+          id?: string
+          target?: string | null
+        }
+        Relationships: []
+      }
+      admin_codes: {
+        Row: {
+          code_hash: string
+          created_at: string
+          id: string
+          label: string
+        }
+        Insert: {
+          code_hash: string
+          created_at?: string
+          id?: string
+          label: string
+        }
+        Update: {
+          code_hash?: string
+          created_at?: string
+          id?: string
+          label?: string
+        }
+        Relationships: []
+      }
       ballots: {
         Row: {
           created_at: string
@@ -43,6 +91,44 @@ export type Database = {
           token_fingerprint?: string
         }
         Relationships: []
+      }
+      candidates: {
+        Row: {
+          bio: string
+          created_at: string
+          id: string
+          name: string
+          photo_url: string
+          position_id: string
+          updated_at: string
+        }
+        Insert: {
+          bio?: string
+          created_at?: string
+          id?: string
+          name: string
+          photo_url: string
+          position_id: string
+          updated_at?: string
+        }
+        Update: {
+          bio?: string
+          created_at?: string
+          id?: string
+          name?: string
+          photo_url?: string
+          position_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidates_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cast_tokens: {
         Row: {
@@ -75,6 +161,39 @@ export type Database = {
             referencedColumns: ["voter_id"]
           },
         ]
+      }
+      election_state: {
+        Row: {
+          ballot_hash: string | null
+          closes_at: string | null
+          id: number
+          locked: boolean
+          locked_at: string | null
+          opens_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ballot_hash?: string | null
+          closes_at?: string | null
+          id?: number
+          locked?: boolean
+          locked_at?: string | null
+          opens_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          ballot_hash?: string | null
+          closes_at?: string | null
+          id?: number
+          locked?: boolean
+          locked_at?: string | null
+          opens_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       otps: {
         Row: {
@@ -113,6 +232,33 @@ export type Database = {
             referencedColumns: ["voter_id"]
           },
         ]
+      }
+      positions: {
+        Row: {
+          created_at: string
+          description: string
+          display_order: number
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          display_order?: number
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          display_order?: number
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       voters: {
         Row: {
