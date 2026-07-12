@@ -1,130 +1,177 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowRight, ShieldCheck, FileText, Vote, ScrollText } from "lucide-react";
+import { ArrowRight, Vote, ScrollText, ShieldCheck, Cpu, Lock, Radio } from "lucide-react";
 import { Masthead, Colophon } from "@/components/masthead";
-import { ELECTION, POSITIONS, CANDIDATES, candidateAvatar } from "@/lib/election-data";
-import { getStats } from "@/lib/election.functions";
+import { ELECTION, accentFor, initialsOf } from "@/lib/election-data";
+import { getBallot, getStats } from "@/lib/election.functions";
 
 export const Route = createFileRoute("/")({
   component: FrontPage,
   head: () => ({
     meta: [
-      { title: "The Ballot Gazette — Front Page" },
-      { name: "description", content: "The Annual General Election of The Herald Society. Cast your ballot, inspect the public ledger, and independently verify the count." },
+      { title: "ELECTION/NODE — Verifiable Ballot MMXXVI" },
+      { name: "description", content: "Blind-signature voting with a public, hash-chained ledger. Cast, receipt, and independently recount every ballot." },
     ],
   }),
 });
 
 function FrontPage() {
+  const getBallotFn = useServerFn(getBallot);
   const getStatsFn = useServerFn(getStats);
-  const stats = useQuery({
-    queryKey: ["stats"],
-    queryFn: () => getStatsFn(),
-    refetchInterval: 10000,
-  });
-  const castCount = stats.data?.castCount ?? 0;
-  const eligible = stats.data?.eligible ?? ELECTION.eligible_voters;
-  const turnout = eligible > 0 ? ((castCount / eligible) * 100).toFixed(1) : "0.0";
+  const ballot = useQuery({ queryKey: ["ballot"], queryFn: () => getBallotFn(), staleTime: 30_000 });
+  const stats = useQuery({ queryKey: ["stats"], queryFn: () => getStatsFn(), refetchInterval: 8000 });
+
+  const positions = ballot.data?.positions ?? [];
+  const candidates = ballot.data?.candidates ?? [];
+  const election = ballot.data?.election;
+  const cast = stats.data?.castCount ?? 0;
+  const eligible = stats.data?.eligible ?? ELECTION.eligible_voters_fallback;
+  const turnout = eligible > 0 ? ((cast / eligible) * 100).toFixed(1) : "0.0";
 
   return (
     <div className="min-h-screen">
       <Masthead />
 
-      <main className="mx-auto max-w-[1200px] px-5 lg:px-10">
+      <main className="mx-auto max-w-[1400px]">
         {/* HERO */}
-        <section className="pt-14 pb-16">
-          <div className="text-center max-w-3xl mx-auto">
-            <div className="smallcaps text-sm text-stamp">Lead Article · Annual Election MMXXVI</div>
-            <h2 className="mt-5 font-display text-[clamp(2.25rem,5vw,4rem)] leading-[1.05]">
-              A ballot no one can <em className="italic">read over your shoulder</em> — and a count anyone can verify.
-            </h2>
-            <p className="mt-7 text-lg leading-relaxed text-ink-soft">
-              Voting opens today for the Society&rsquo;s annual election. The poll is conducted under a
-              blind-signature ballot with a publicly hash-chained ledger — your vote is sealed before it
-              is signed, and the tally is a sum any member may recompute at their own kitchen table.
-            </p>
-
-            <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/vote" className="btn-primary hover:bg-stamp hover:border-stamp">
-                <Vote size={20} />
-                Cast your ballot
-                <ArrowRight size={18} />
-              </Link>
-              <Link to="/ledger" className="btn-secondary hover:bg-ink hover:text-paper">
-                <ScrollText size={20} />
-                Read the public ledger
-              </Link>
+        <section className="border-b border-line px-5 lg:px-10 py-12 md:py-20">
+          <div className="grid gap-10 lg:grid-cols-12">
+            <div className="lg:col-span-8">
+              <div className="label-on">§ Front-page dispatch</div>
+              <h2 className="mt-4 font-display font-black leading-[0.95] tracking-[-0.03em]
+                             text-[clamp(2.4rem,6vw,5rem)]">
+                A ballot that <span className="text-accent">no-one</span> can read over your shoulder.
+                A count that <span className="text-accent">anyone</span> can reproduce.
+              </h2>
+              <p className="mt-8 text-fg-dim text-lg max-w-2xl leading-relaxed">
+                Voting is open. Every ballot is cast through a blind-signature protocol: the server signs
+                a token without seeing the selections. Every ballot then lands on a public, append-only
+                hash chain. There is no trusted authority — only a public artifact.
+              </p>
+              <div className="mt-10 flex flex-wrap gap-3">
+                <Link to="/vote" className="btn-primary hover:btn-primary-hover">
+                  <Vote size={18} /> Cast ballot <ArrowRight size={16} />
+                </Link>
+                <Link to="/ledger" className="btn hover:text-accent hover:border-accent">
+                  <ScrollText size={16} /> Read ledger
+                </Link>
+                <Link to="/verify" className="btn hover:text-accent hover:border-accent">
+                  <ShieldCheck size={16} /> Verify receipt
+                </Link>
+              </div>
             </div>
-          </div>
 
-          {/* Stats row */}
-          <div className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-4 border-y-2 border-ink py-8">
-            <Stat n={castCount.toString()} l="Ballots cast" />
-            <Stat n={eligible.toLocaleString()} l="Eligible voters" />
-            <Stat n={`${turnout}%`} l="Turnout" />
-            <Stat n={POSITIONS.length.toString()} l="Positions" />
+            <aside className="lg:col-span-4">
+              <div className="panel p-6 space-y-5">
+                <div className="flex items-center justify-between">
+                  <span className="label-on flex items-center gap-2"><Radio size={12} className="animate-pulse" /> Live</span>
+                  <span className="label">Node · assembly</span>
+                </div>
+                <div>
+                  <div className="label">Turnout</div>
+                  <div className="mt-2 flex items-baseline gap-3">
+                    <span className="mono text-5xl font-bold text-accent">{turnout}</span>
+                    <span className="mono text-xl text-fg-dim">%</span>
+                  </div>
+                  <div className="mt-3 h-2 bg-bg-2 border border-line">
+                    <div className="h-full bg-accent" style={{ width: `${Math.min(100, Number(turnout))}%` }} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Metric label="Cast" value={cast.toLocaleString()} />
+                  <Metric label="Eligible" value={eligible.toLocaleString()} />
+                  <Metric label="Positions" value={positions.length.toString()} />
+                  <Metric label="Candidates" value={candidates.length.toString()} />
+                </div>
+                <div className="rule pt-4">
+                  <div className="label mb-1">Status</div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Lock size={14} className={election?.locked ? "text-accent" : "text-fg-mute"} />
+                    <span className={election?.locked ? "text-accent" : "text-fg-dim"}>
+                      Ballot {election?.locked ? "LOCKED" : "editable (pre-vote window)"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </aside>
           </div>
         </section>
 
-        {/* WHAT YOU CAN DO — clear entry points */}
-        <section className="pb-16">
-          <div className="text-center mb-10">
-            <div className="marginalia">What you can do</div>
-            <h3 className="mt-2 font-display text-3xl md:text-4xl">Four sections. One election.</h3>
+        {/* Sections index */}
+        <section className="border-b border-line grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-line">
+          <SectionCell n="01" to="/vote" title="Cast Ballot" body="ID → OTP → Ballot → Confirm → Receipt." icon={<Vote size={18} />} />
+          <SectionCell n="02" to="/ledger" title="Public Ledger" body="Every ballot in a live hash chain." icon={<ScrollText size={18} />} />
+          <SectionCell n="03" to="/verify" title="Verify Receipt" body="Prove your receipt sits in the chain." icon={<ShieldCheck size={18} />} />
+          <SectionCell n="04" to="/admin" title="Admin Console" body="Ballot manager · analytics · lock." icon={<Cpu size={18} />} />
+        </section>
+
+        {/* Ballot preview */}
+        <section className="px-5 lg:px-10 py-16 border-b border-line">
+          <div className="flex items-baseline justify-between mb-8">
+            <div>
+              <div className="label-on">§ Article 02</div>
+              <h3 className="mt-2 font-display text-3xl md:text-5xl font-black tracking-tight">
+                The ballot, published in full.
+              </h3>
+            </div>
+            <div className="hidden md:block label">Alphabetical · bias-free rendering</div>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            <ActionCard
-              icon={<Vote size={24} />}
-              to="/vote"
-              title="Cast a Ballot"
-              body="Enter your voter ID, verify with a one-time code, mark your ballot, and receive a private receipt."
-              cta="Enter polling room"
-            />
-            <ActionCard
-              icon={<ScrollText size={24} />}
-              to="/ledger"
-              title="Public Ledger"
-              body="Every ballot cast so far, in a tamper-evident hash chain, with a live tally."
-              cta="Browse ledger"
-            />
-            <ActionCard
-              icon={<ShieldCheck size={24} />}
-              to="/verify"
-              title="Verify a Receipt"
-              body="Confirm your receipt is on the ledger and run an independent recount of the entire chain."
-              cta="Verify now"
-            />
-            <ActionCard
-              icon={<FileText size={24} />}
-              to="/admin"
-              title="Ballot of Record"
-              body="The locked ballot, published in full with cryptographic hash and chain of custody."
-              cta="Read of record"
-            />
+
+          {ballot.isLoading && <div className="label">Loading ballot…</div>}
+
+          <div className="space-y-14">
+            {positions.map((pos, i) => {
+              const cands = candidates.filter((c) => c.position_id === pos.id);
+              return (
+                <div key={pos.id}>
+                  <div className="flex items-baseline justify-between border-b border-line pb-4 mb-6">
+                    <div>
+                      <div className="label">Position {String(i + 1).padStart(2, "0")} / {positions.length}</div>
+                      <h4 className="mt-1 font-display text-2xl md:text-3xl font-black">{pos.name}</h4>
+                      <p className="text-fg-dim mt-1">{pos.description}</p>
+                    </div>
+                    <div className="label">{cands.length} candidates</div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {cands.map((c) => (
+                      <div key={c.id} className="panel p-5 flex gap-4">
+                        <div
+                          className="h-14 w-14 shrink-0 border border-line flex items-center justify-center mono font-bold text-lg text-bg"
+                          style={{ background: accentFor(c.id) }}
+                        >
+                          {initialsOf(c.name)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold">{c.name}</div>
+                          <p className="text-sm text-fg-dim mt-1 leading-snug">{c.bio}</p>
+                          <div className="hash mt-2 text-[0.65rem]">{c.id.slice(0, 18)}…</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
 
-        {/* SIX PRINCIPLES */}
-        <section className="py-16 border-t-2 border-ink">
-          <div className="max-w-2xl mb-10">
-            <div className="marginalia">Six principles</div>
-            <h3 className="mt-2 font-display text-3xl md:text-4xl">The rules the system defers to.</h3>
-            <p className="mt-4 text-ink-soft text-lg">
-              Every decision defers to these. Where a convenience would compromise them, the convenience is refused.
-            </p>
+        {/* Principles */}
+        <section className="px-5 lg:px-10 py-16 border-b border-line">
+          <div className="max-w-2xl">
+            <div className="label-on">§ Article 03</div>
+            <h3 className="mt-2 font-display text-3xl md:text-5xl font-black tracking-tight">
+              Six rules. No exceptions.
+            </h3>
           </div>
-
-          <div className="grid gap-x-10 gap-y-2 sm:grid-cols-2">
+          <div className="mt-10 grid gap-0 md:grid-cols-2 border border-line">
             {PRINCIPLES.map((p, i) => (
-              <div key={p.title} className="py-6 border-t border-ink/20">
+              <div key={p.title} className="p-6 border-b border-r border-line last:border-b-0 md:[&:nth-last-child(-n+2)]:border-b-0 md:even:border-r-0">
                 <div className="flex items-baseline gap-4">
-                  <span className="font-display text-3xl text-stamp shrink-0">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
+                  <span className="mono text-accent font-bold text-2xl w-10 shrink-0">{String(i + 1).padStart(2, "0")}</span>
                   <div>
-                    <h4 className="font-display text-xl">{p.title}</h4>
-                    <p className="mt-2 text-base leading-relaxed text-ink-soft">{p.body}</p>
+                    <h4 className="font-bold text-lg">{p.title}</h4>
+                    <p className="mt-2 text-fg-dim text-sm leading-relaxed">{p.body}</p>
                   </div>
                 </div>
               </div>
@@ -132,57 +179,15 @@ function FrontPage() {
           </div>
         </section>
 
-        {/* CANDIDATES */}
-        <section className="py-16 border-t-2 border-ink">
-          <div className="max-w-2xl mb-10">
-            <div className="marginalia">Standing for office</div>
-            <h3 className="mt-2 font-display text-3xl md:text-4xl">The candidates this session.</h3>
-          </div>
-
-          {POSITIONS.map((pos) => {
-            const cands = CANDIDATES.filter(c => c.position_id === pos.id)
-              .sort((a, b) => a.name.localeCompare(b.name));
-            return (
-              <div key={pos.id} className="mb-12">
-                <div className="mb-5 pb-3 border-b border-ink/25">
-                  <div className="marginalia">Position</div>
-                  <h4 className="font-display text-2xl md:text-3xl italic mt-1">{pos.name}</h4>
-                  <p className="mt-2 text-base text-ink-soft">{pos.description}</p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {cands.map(c => (
-                    <div key={c.id} className="border-2 border-ink/20 bg-card p-5 flex gap-4">
-                      <div
-                        className="h-16 w-16 shrink-0 border-2 border-ink flex items-center justify-center font-display text-lg text-paper"
-                        style={{ background: candidateAvatar(c.photo_hue) }}
-                      >
-                        {c.name.split(" ").map(n => n[0]).join("")}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-display text-lg leading-tight">{c.name}</div>
-                        <p className="mt-2 text-sm text-ink-soft leading-relaxed">{c.bio}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </section>
-
-        {/* CALL TO CAST */}
-        <section className="py-20 text-center border-t-2 border-ink">
-          <div className="marginalia">Adjournment</div>
-          <h3 className="mt-4 font-display text-[clamp(2rem,5vw,4rem)] leading-[1.05]">
-            You have one <em className="italic">ballot</em>. Cast it well.
+        {/* CTA */}
+        <section className="px-5 lg:px-10 py-24 text-center">
+          <div className="label-on">§ Final call</div>
+          <h3 className="mt-4 font-display text-4xl md:text-6xl font-black tracking-[-0.03em]">
+            One ballot. <span className="text-accent">Cast it well.</span>
           </h3>
-          <div className="mt-9">
-            <Link to="/vote" className="btn-primary hover:bg-stamp hover:border-stamp text-base px-8 py-4">
-              <Vote size={20} />
-              Enter the polling room
-              <ArrowRight size={18} />
-            </Link>
-          </div>
+          <Link to="/vote" className="btn-primary hover:btn-primary-hover mt-10 inline-flex">
+            <Vote size={18} /> Enter polling node <ArrowRight size={16} />
+          </Link>
         </section>
       </main>
 
@@ -191,40 +196,36 @@ function FrontPage() {
   );
 }
 
-function Stat({ n, l }: { n: string; l: string }) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="text-center">
-      <div className="font-display text-3xl md:text-4xl leading-none">{n}</div>
-      <div className="marginalia mt-2">{l}</div>
+    <div>
+      <div className="label">{label}</div>
+      <div className="mono text-xl font-bold mt-1">{value}</div>
     </div>
   );
 }
 
-function ActionCard({
-  icon, to, title, body, cta,
-}: { icon: React.ReactNode; to: string; title: string; body: string; cta: string }) {
+function SectionCell({ n, to, title, body, icon }: { n: string; to: string; title: string; body: string; icon: React.ReactNode }) {
   return (
-    <Link
-      to={to}
-      className="group flex flex-col border-2 border-ink bg-card p-6 hover:bg-ink hover:text-paper transition-colors"
-    >
-      <div className="text-stamp group-hover:text-paper transition-colors">{icon}</div>
-      <h4 className="mt-4 font-display text-xl">{title}</h4>
-      <p className="mt-2 text-sm leading-relaxed text-ink-soft group-hover:text-paper/85 transition-colors flex-1">
-        {body}
-      </p>
-      <div className="mt-5 flex items-center gap-2 text-sm font-semibold">
-        {cta} <ArrowRight size={16} />
+    <Link to={to} className="group p-8 hover:bg-bg-2 transition-colors flex flex-col">
+      <div className="flex items-center justify-between">
+        <span className="mono text-accent font-bold text-2xl">{n}</span>
+        <span className="text-fg-mute group-hover:text-accent transition-colors">{icon}</span>
+      </div>
+      <h4 className="mt-6 font-display font-black text-xl">{title}</h4>
+      <p className="mt-2 text-fg-dim text-sm">{body}</p>
+      <div className="mt-6 flex items-center gap-2 label group-hover:text-accent">
+        Enter <ArrowRight size={12} />
       </div>
     </Link>
   );
 }
 
 const PRINCIPLES = [
-  { title: "Identity, unlinked", body: "The register of who voted and the record of what was voted are kept apart. There is no code path that can rejoin them." },
-  { title: "Tamper-evident", body: "Every disputable step leaves a public artifact: a hash, a signature, a published record. Trust is not required — it is verifiable." },
-  { title: "One author, in the open", body: "The ballot is authored by the returning officer alone. Every draft edit is logged, and the final list is hash-published before voting opens." },
-  { title: "No mid-election drift", body: "Positions, candidates and eligibility freeze the moment voting opens. There are no quiet edits after the polls turn on." },
-  { title: "Publicly recountable", body: "The published record is sufficient for an outside party to recompute the result. If they cannot, we haven't published enough." },
-  { title: "Coercion-resistant", body: "Your receipt proves your vote to you and to no-one else. A buyer can be told anything, and cannot check." },
+  { title: "Identity, unlinked", body: "Who voted and what was voted are stored apart. No code path exists to rejoin them." },
+  { title: "Blind-signature ballot", body: "The server signs a random token without seeing the selection. The vote is sealed before it is signed." },
+  { title: "Tamper-evident chain", body: "Every ballot appends to a public hash chain. Any silent rewrite of the past breaks the chain, visibly." },
+  { title: "Locked mid-election", body: "Once the ballot is locked, no positions or candidates can be added, edited, or removed. Enforced in the database." },
+  { title: "Publicly recountable", body: "The published ledger is sufficient for anyone to recompute the tally, without the server's cooperation." },
+  { title: "Coercion resistant", body: "Receipts prove your vote to you and to nobody else. Nobody can compel proof that could not be forged." },
 ];
