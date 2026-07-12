@@ -42,7 +42,7 @@ async function assertUnlocked() {
 
 async function logAdmin(actor: string, action: string, target: string | null, detail: Record<string, unknown> = {}) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await supabaseAdmin.from("admin_audit_log").insert({ actor, action, target, detail });
+  await supabaseAdmin.from("admin_audit_log").insert({ actor, action, target, detail: detail as never });
 }
 
 // ---------- Ballot definition (public) ----------
