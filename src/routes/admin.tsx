@@ -252,7 +252,7 @@ function Console({ passcode, onSignOut }: { passcode: string; onSignOut: () => v
                       <li key={c.id} className="flex items-center gap-4 py-3">
                         <div className="h-10 w-10 border border-line flex items-center justify-center mono font-bold text-bg text-sm"
                           style={{ background: accentFor(c.id) }}>
-                          {c.name.split(" ").slice(0, 2).map((s) => s[0]).join("")}
+                          {c.name.split(" ").slice(0, 2).map((s: string) => s[0]).join("")}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-bold text-sm">{c.name}</div>
