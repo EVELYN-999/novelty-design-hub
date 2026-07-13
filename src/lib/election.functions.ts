@@ -367,8 +367,8 @@ export const adminListUsers = createServerFn({ method: "POST" })
       const arr = roleMap.get(r.user_id) ?? [];
       arr.push(r.role); roleMap.set(r.user_id, arr);
     }
-    const ticketMap = new Map<string, { code: string; status: string }>();
-    for (const t of (tickets ?? [])) ticketMap.set(t.user_id, { code: t.code, status: t.status });
+    const ticketMap = new Map<string, { id: string; code: string; status: string }>();
+    for (const t of (tickets ?? [])) ticketMap.set(t.user_id, { id: t.id, code: t.code, status: t.status });
     return {
       users: (profiles ?? []).map((p) => ({
         id: p.id, full_name: p.full_name, email: p.email, created_at: p.created_at,
