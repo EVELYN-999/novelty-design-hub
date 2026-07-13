@@ -423,7 +423,7 @@ function TicketsTab({ electionId, onChanged }: { electionId: string; onChanged: 
                   {!u.ticket ? (
                     <button className="btn" onClick={() => issueOne(u.id)}><UserPlus size={14} /> Issue</button>
                   ) : u.ticket.status === "active" ? (
-                    <button className="btn-danger" onClick={() => revoke((u.ticket as { id?: string } & typeof u.ticket).status ? ((u as unknown as { ticket: { id: string } }).ticket.id ?? "") : "")}>
+                    <button className="btn-danger" onClick={() => revoke(u.ticket!.id)}>
                       <ShieldOff size={14} /> Revoke
                     </button>
                   ) : null}
