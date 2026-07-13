@@ -14,84 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      admin_audit_log: {
-        Row: {
-          action: string
-          actor: string
-          created_at: string
-          detail: Json
-          id: string
-          target: string | null
-        }
-        Insert: {
-          action: string
-          actor: string
-          created_at?: string
-          detail?: Json
-          id?: string
-          target?: string | null
-        }
-        Update: {
-          action?: string
-          actor?: string
-          created_at?: string
-          detail?: Json
-          id?: string
-          target?: string | null
-        }
-        Relationships: []
-      }
-      admin_codes: {
-        Row: {
-          code_hash: string
-          created_at: string
-          id: string
-          label: string
-        }
-        Insert: {
-          code_hash: string
-          created_at?: string
-          id?: string
-          label: string
-        }
-        Update: {
-          code_hash?: string
-          created_at?: string
-          id?: string
-          label?: string
-        }
-        Relationships: []
-      }
-      ballots: {
-        Row: {
-          created_at: string
-          entry_hash: string
-          entry_index: number
-          prev_hash: string
-          receipt_hash: string
-          selections: Json
-          token_fingerprint: string
-        }
-        Insert: {
-          created_at?: string
-          entry_hash: string
-          entry_index?: number
-          prev_hash: string
-          receipt_hash: string
-          selections: Json
-          token_fingerprint: string
-        }
-        Update: {
-          created_at?: string
-          entry_hash?: string
-          entry_index?: number
-          prev_hash?: string
-          receipt_hash?: string
-          selections?: Json
-          token_fingerprint?: string
-        }
-        Relationships: []
-      }
       candidates: {
         Row: {
           bio: string
@@ -107,7 +29,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
-          photo_url: string
+          photo_url?: string
           position_id: string
           updated_at?: string
         }
@@ -130,114 +52,45 @@ export type Database = {
           },
         ]
       }
-      cast_tokens: {
+      elections: {
         Row: {
+          activated_at: string | null
           created_at: string
-          expires_at: string
-          token: string
-          used: boolean
-          voter_id: string
-        }
-        Insert: {
-          created_at?: string
-          expires_at: string
-          token: string
-          used?: boolean
-          voter_id: string
-        }
-        Update: {
-          created_at?: string
-          expires_at?: string
-          token?: string
-          used?: boolean
-          voter_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cast_tokens_voter_id_fkey"
-            columns: ["voter_id"]
-            isOneToOne: false
-            referencedRelation: "voters"
-            referencedColumns: ["voter_id"]
-          },
-        ]
-      }
-      election_state: {
-        Row: {
-          ballot_hash: string | null
-          closes_at: string | null
-          id: number
-          locked: boolean
-          locked_at: string | null
-          opens_at: string | null
+          description: string
+          ended_at: string | null
+          id: string
+          status: string
           title: string
           updated_at: string
         }
         Insert: {
-          ballot_hash?: string | null
-          closes_at?: string | null
-          id?: number
-          locked?: boolean
-          locked_at?: string | null
-          opens_at?: string | null
-          title?: string
+          activated_at?: string | null
+          created_at?: string
+          description?: string
+          ended_at?: string | null
+          id?: string
+          status?: string
+          title: string
           updated_at?: string
         }
         Update: {
-          ballot_hash?: string | null
-          closes_at?: string | null
-          id?: number
-          locked?: boolean
-          locked_at?: string | null
-          opens_at?: string | null
+          activated_at?: string | null
+          created_at?: string
+          description?: string
+          ended_at?: string | null
+          id?: string
+          status?: string
           title?: string
           updated_at?: string
         }
         Relationships: []
-      }
-      otps: {
-        Row: {
-          attempts: number
-          code_hash: string
-          created_at: string
-          expires_at: string
-          id: string
-          used: boolean
-          voter_id: string
-        }
-        Insert: {
-          attempts?: number
-          code_hash: string
-          created_at?: string
-          expires_at: string
-          id?: string
-          used?: boolean
-          voter_id: string
-        }
-        Update: {
-          attempts?: number
-          code_hash?: string
-          created_at?: string
-          expires_at?: string
-          id?: string
-          used?: boolean
-          voter_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "otps_voter_id_fkey"
-            columns: ["voter_id"]
-            isOneToOne: false
-            referencedRelation: "voters"
-            referencedColumns: ["voter_id"]
-          },
-        ]
       }
       positions: {
         Row: {
           created_at: string
           description: string
           display_order: number
+          election_id: string
           id: string
           name: string
           updated_at: string
@@ -246,6 +99,7 @@ export type Database = {
           created_at?: string
           description?: string
           display_order?: number
+          election_id: string
           id?: string
           name: string
           updated_at?: string
@@ -254,45 +108,179 @@ export type Database = {
           created_at?: string
           description?: string
           display_order?: number
+          election_id?: string
           id?: string
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "positions_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      voters: {
+      profiles: {
         Row: {
           created_at: string
-          display_name: string
-          has_voted: boolean
-          phone_mask: string
-          voter_id: string
+          email: string
+          full_name: string
+          id: string
+          updated_at: string
         }
         Insert: {
           created_at?: string
-          display_name: string
-          has_voted?: boolean
-          phone_mask: string
-          voter_id: string
+          email?: string
+          full_name?: string
+          id: string
+          updated_at?: string
         }
         Update: {
           created_at?: string
-          display_name?: string
-          has_voted?: boolean
-          phone_mask?: string
-          voter_id?: string
+          email?: string
+          full_name?: string
+          id?: string
+          updated_at?: string
         }
         Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      votes: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          election_id: string
+          id: string
+          position_id: string
+          ticket_id: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          election_id: string
+          id?: string
+          position_id: string
+          ticket_id: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          election_id?: string
+          id?: string
+          position_id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "votes_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "votes_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "votes_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "voting_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voting_tickets: {
+        Row: {
+          code: string
+          election_id: string
+          id: string
+          issued_at: string
+          status: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          code: string
+          election_id: string
+          id?: string
+          issued_at?: string
+          status?: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          code?: string
+          election_id?: string
+          id?: string
+          issued_at?: string
+          status?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voting_tickets_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      terminate_election_tickets: {
+        Args: { _election_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "voter"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -419,6 +407,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "voter"],
+    },
   },
 } as const
