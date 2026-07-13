@@ -355,13 +355,14 @@ export const adminListUsers = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [{ data: profiles }, { data: tickets }, { data: roles }] = await Promise.all([
+    const [{ data: profiles }, ticketsRes, { data: roles }] = await Promise.all([
       supabaseAdmin.from("profiles").select("id, full_name, email, created_at").order("created_at", { ascending: false }),
       data.electionId
-        ? supabaseAdmin.from("voting_tickets").select("*").eq("election_id", data.electionId)
-        : Promise.resolve({ data: [] as { id: string; user_id: string; code: string; status: string; election_id: string }[] }),
+        ? supabaseAdmin.from("voting_tickets").select("id, user_id, code, status, election_id").eq("election_id", data.electionId)
+        : supabaseAdmin.from("voting_tickets").select("id, user_id, code, status, election_id").limit(0),
       supabaseAdmin.from("user_roles").select("user_id, role"),
     ]);
+    const tickets = ticketsRes.data ?? [];
     const roleMap = new Map<string, string[]>();
     for (const r of roles ?? []) {
       const arr = roleMap.get(r.user_id) ?? [];
