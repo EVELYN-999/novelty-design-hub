@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { SiteHeader, SiteFooter } from "@/components/site-header";
 import { getPublicElection } from "@/lib/election.functions";
-import { ArrowRight, ShieldCheck, Ticket, BarChart3 } from "lucide-react";
+import { ArrowRight, ShieldCheck, Ticket, BarChart3, Trophy, Users, Radio } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
