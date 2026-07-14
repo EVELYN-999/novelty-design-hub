@@ -1,20 +1,28 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Menu, X, LogOut, Radio } from "lucide-react";
+import { Menu, X, LogOut, Radio, ShieldCheck, UserCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMe } from "@/lib/election.functions";
 
+
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setUserId(s?.user?.id ?? null));
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id ?? null);
+      setUserEmail(data.user?.email ?? null);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => {
+      setUserId(s?.user?.id ?? null);
+      setUserEmail(s?.user?.email ?? null);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -41,6 +49,7 @@ export function SiteHeader() {
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   }
+
 
   return (
     <header className="w-full border-b border-line bg-bg sticky top-0 z-40">
@@ -69,14 +78,26 @@ export function SiteHeader() {
               </Link>
             ))}
             {userId ? (
-              <button onClick={signOut} className="btn ml-2" title="Sign out">
-                <LogOut size={14} /> Sign out
-              </button>
+              <>
+                <div className="ml-3 mr-1 hidden lg:flex items-center gap-2 px-3 py-2 border border-line-dim bg-bg-2">
+                  <UserCircle2 size={16} className="text-fg-dim" />
+                  <span className="mono text-xs truncate max-w-[180px]" title={userEmail ?? ""}>{userEmail}</span>
+                  {isAdmin && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 border border-accent text-accent label" style={{ fontSize: "0.65rem" }}>
+                      <ShieldCheck size={11} /> Admin
+                    </span>
+                  )}
+                </div>
+                <button onClick={signOut} className="btn ml-2" title="Sign out">
+                  <LogOut size={14} /> Sign out
+                </button>
+              </>
             ) : (
               <Link to="/auth" className="btn-primary ml-2">Sign in</Link>
             )}
           </nav>
           <button className="md:hidden btn" onClick={() => setOpen((v) => !v)}>
+
             {open ? <X size={16} /> : <Menu size={16} />}
           </button>
         </div>

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { SiteHeader, SiteFooter } from "@/components/site-header";
 import { getPublicElection } from "@/lib/election.functions";
-import { ArrowRight, ShieldCheck, Ticket, BarChart3 } from "lucide-react";
+import { ArrowRight, ShieldCheck, Ticket, BarChart3, Trophy, Users, Radio } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
@@ -24,14 +24,26 @@ function HomePage() {
   const results = q.data?.results ?? [];
 
   const totalVotes = results.reduce((a, r) => a + r.votes, 0);
+  const totalCandidates = candidates.length;
+  const isActive = election?.status === "active";
+  const isEnded = election?.status === "ended";
 
   return (
     <div className="min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-[1400px] px-5 lg:px-10 py-10">
         {/* Hero */}
-        <section className="border border-line bg-panel p-8 md:p-12">
-          <div className="label">{election ? (election.status === "active" ? "Election Active" : election.status === "ended" ? "Election Ended" : "Election Draft") : "No election yet"}</div>
+        <section className="border border-line bg-panel p-8 md:p-12 relative overflow-hidden">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span
+              className={`inline-flex items-center gap-2 px-3 py-1 border label-on ${
+                isActive ? "border-accent text-accent" : isEnded ? "border-danger text-danger" : "border-line text-fg-dim"
+              }`}
+            >
+              {isActive && <Radio size={12} className="animate-pulse" />}
+              {isActive ? "Live · Election Active" : isEnded ? "Election Ended" : election ? "Election Draft" : "No election yet"}
+            </span>
+          </div>
           <h1 className="mt-4 font-display font-black text-[clamp(2rem,6vw,4rem)] leading-[1.05] tracking-tight">
             {election?.title ?? "No election is currently running"}
           </h1>
@@ -44,7 +56,25 @@ function HomePage() {
             </Link>
             <Link to="/dashboard" className="btn">My dashboard</Link>
           </div>
+
+          {election && (
+            <div className="mt-10 grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="border border-line-dim p-4 bg-bg-2">
+                <div className="label flex items-center gap-2"><Users size={12}/> Votes cast</div>
+                <div className="datum text-3xl mt-1 text-accent">{totalVotes}</div>
+              </div>
+              <div className="border border-line-dim p-4 bg-bg-2">
+                <div className="label">Positions</div>
+                <div className="datum text-3xl mt-1">{positions.length}</div>
+              </div>
+              <div className="border border-line-dim p-4 bg-bg-2 col-span-2 md:col-span-1">
+                <div className="label">Candidates</div>
+                <div className="datum text-3xl mt-1">{totalCandidates}</div>
+              </div>
+            </div>
+          )}
         </section>
+
 
         {/* Feature cards */}
         <section className="mt-10 grid gap-4 md:grid-cols-3">
@@ -77,6 +107,7 @@ function HomePage() {
                 {positions.map((p) => {
                   const list = candidates.filter((c) => c.position_id === p.id);
                   const posTotal = list.reduce((a, c) => a + (results.find((r) => r.candidate_id === c.id)?.votes ?? 0), 0);
+                  const maxVotes = Math.max(0, ...list.map((c) => results.find((r) => r.candidate_id === c.id)?.votes ?? 0));
                   return (
                     <div key={p.id} className="panel p-6">
                       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -91,18 +122,32 @@ function HomePage() {
                         {list.map((c) => {
                           const v = results.find((r) => r.candidate_id === c.id)?.votes ?? 0;
                           const pct = posTotal > 0 ? (v / posTotal) * 100 : 0;
+                          const isLeader = maxVotes > 0 && v === maxVotes;
                           return (
-                            <div key={c.id} className="border border-line-dim p-3">
+                            <div
+                              key={c.id}
+                              className={`border p-3 transition-colors ${isLeader ? "border-accent bg-bg-2" : "border-line-dim hover:border-line"}`}
+                            >
                               <div className="flex items-center gap-3">
-                                <img src={c.photo_url} alt={c.name} className="w-10 h-10 border border-line object-cover" />
+                                <img src={c.photo_url} alt={c.name} className="w-11 h-11 border border-line object-cover" />
                                 <div className="flex-1 min-w-0">
-                                  <div className="font-medium truncate">{c.name}</div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="font-medium truncate">{c.name}</div>
+                                    {isLeader && (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 border border-accent text-accent label" style={{ fontSize: "0.6rem" }}>
+                                        <Trophy size={10} /> Leading
+                                      </span>
+                                    )}
+                                  </div>
                                   {c.bio && <div className="text-xs text-fg-dim truncate">{c.bio}</div>}
                                 </div>
-                                <div className="datum text-sm">{v} · {pct.toFixed(1)}%</div>
+                                <div className="datum text-sm text-right">
+                                  <div className={isLeader ? "text-accent font-bold" : ""}>{v}</div>
+                                  <div className="text-xs text-fg-dim">{pct.toFixed(1)}%</div>
+                                </div>
                               </div>
-                              <div className="mt-2 h-1 bg-bg-2 border border-line-dim">
-                                <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
+                              <div className="mt-2 h-1.5 bg-bg-2 border border-line-dim">
+                                <div className={`h-full transition-all ${isLeader ? "bg-accent" : "bg-fg-mute"}`} style={{ width: `${pct}%` }} />
                               </div>
                             </div>
                           );
@@ -111,6 +156,7 @@ function HomePage() {
                     </div>
                   );
                 })}
+
               </div>
             )}
           </section>
