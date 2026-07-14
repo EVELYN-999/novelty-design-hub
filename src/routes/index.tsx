@@ -107,6 +107,7 @@ function HomePage() {
                 {positions.map((p) => {
                   const list = candidates.filter((c) => c.position_id === p.id);
                   const posTotal = list.reduce((a, c) => a + (results.find((r) => r.candidate_id === c.id)?.votes ?? 0), 0);
+                  const maxVotes = Math.max(0, ...list.map((c) => results.find((r) => r.candidate_id === c.id)?.votes ?? 0));
                   return (
                     <div key={p.id} className="panel p-6">
                       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -121,18 +122,32 @@ function HomePage() {
                         {list.map((c) => {
                           const v = results.find((r) => r.candidate_id === c.id)?.votes ?? 0;
                           const pct = posTotal > 0 ? (v / posTotal) * 100 : 0;
+                          const isLeader = maxVotes > 0 && v === maxVotes;
                           return (
-                            <div key={c.id} className="border border-line-dim p-3">
+                            <div
+                              key={c.id}
+                              className={`border p-3 transition-colors ${isLeader ? "border-accent bg-bg-2" : "border-line-dim hover:border-line"}`}
+                            >
                               <div className="flex items-center gap-3">
-                                <img src={c.photo_url} alt={c.name} className="w-10 h-10 border border-line object-cover" />
+                                <img src={c.photo_url} alt={c.name} className="w-11 h-11 border border-line object-cover" />
                                 <div className="flex-1 min-w-0">
-                                  <div className="font-medium truncate">{c.name}</div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="font-medium truncate">{c.name}</div>
+                                    {isLeader && (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 border border-accent text-accent label" style={{ fontSize: "0.6rem" }}>
+                                        <Trophy size={10} /> Leading
+                                      </span>
+                                    )}
+                                  </div>
                                   {c.bio && <div className="text-xs text-fg-dim truncate">{c.bio}</div>}
                                 </div>
-                                <div className="datum text-sm">{v} · {pct.toFixed(1)}%</div>
+                                <div className="datum text-sm text-right">
+                                  <div className={isLeader ? "text-accent font-bold" : ""}>{v}</div>
+                                  <div className="text-xs text-fg-dim">{pct.toFixed(1)}%</div>
+                                </div>
                               </div>
-                              <div className="mt-2 h-1 bg-bg-2 border border-line-dim">
-                                <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
+                              <div className="mt-2 h-1.5 bg-bg-2 border border-line-dim">
+                                <div className={`h-full transition-all ${isLeader ? "bg-accent" : "bg-fg-mute"}`} style={{ width: `${pct}%` }} />
                               </div>
                             </div>
                           );
@@ -141,6 +156,7 @@ function HomePage() {
                     </div>
                   );
                 })}
+
               </div>
             )}
           </section>
