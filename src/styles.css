@@ -76,18 +76,25 @@
 
 @layer base {
   * { border-color: var(--color-border); border-radius: 0 !important; }
-  html { font-size: 16px; }
+  html { font-size: 18px; }
+  @media (min-width: 1024px) { html { font-size: 19px; } }
   html, body { background: var(--bg); color: var(--fg); }
   body {
     font-family: var(--font-sans);
-    line-height: 1.55;
+    font-size: 1.05rem;
+    line-height: 1.65;
     background-image:
       linear-gradient(to right, rgba(180,255,57,0.03) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(180,255,57,0.03) 1px, transparent 1px);
     background-size: 48px 48px, 48px 48px;
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; }
+  h1 { font-size: clamp(2.25rem, 4vw, 3.5rem); }
+  h2 { font-size: clamp(1.75rem, 3vw, 2.5rem); }
+  h3 { font-size: clamp(1.35rem, 2vw, 1.75rem); }
+  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  p, li { font-size: 1.05rem; }
+  button, a { font-size: 1rem; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   ::selection { background: var(--accent); color: var(--bg); }
   hr { border-color: var(--line); }
@@ -97,7 +104,7 @@
 @utility mono { font-family: var(--font-mono); font-feature-settings: "zero"; }
 @utility label {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--fg-dim);
@@ -105,7 +112,7 @@
 }
 @utility label-on {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent);
@@ -132,14 +139,14 @@
 /* ---------- buttons ---------- */
 @utility btn {
   display: inline-flex; align-items: center; justify-content: center;
-  gap: 0.55rem;
-  min-height: 2.75rem;
-  padding: 0.65rem 1.15rem;
+  gap: 0.6rem;
+  min-height: 3rem;
+  padding: 0.8rem 1.35rem;
   background: transparent;
   color: var(--fg);
   border: 1px solid var(--line);
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 600;
@@ -148,14 +155,14 @@
 }
 @utility btn-primary {
   display: inline-flex; align-items: center; justify-content: center;
-  gap: 0.55rem;
-  min-height: 3rem;
-  padding: 0.8rem 1.4rem;
+  gap: 0.6rem;
+  min-height: 3.25rem;
+  padding: 0.9rem 1.6rem;
   background: var(--accent);
   color: var(--bg);
   border: 1px solid var(--accent);
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 1rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 700;
@@ -165,14 +172,14 @@
 @utility btn-primary-hover { filter: brightness(1.1); }
 @utility btn-danger {
   display: inline-flex; align-items: center; justify-content: center;
-  gap: 0.55rem;
-  min-height: 2.75rem;
-  padding: 0.65rem 1.15rem;
+  gap: 0.6rem;
+  min-height: 3rem;
+  padding: 0.8rem 1.35rem;
   background: transparent;
   color: var(--danger);
   border: 1px solid var(--danger);
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 600;
