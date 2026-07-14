@@ -78,14 +78,26 @@ export function SiteHeader() {
               </Link>
             ))}
             {userId ? (
-              <button onClick={signOut} className="btn ml-2" title="Sign out">
-                <LogOut size={14} /> Sign out
-              </button>
+              <>
+                <div className="ml-3 mr-1 hidden lg:flex items-center gap-2 px-3 py-2 border border-line-dim bg-bg-2">
+                  <UserCircle2 size={16} className="text-fg-dim" />
+                  <span className="mono text-xs truncate max-w-[180px]" title={userEmail ?? ""}>{userEmail}</span>
+                  {isAdmin && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 border border-accent text-accent label" style={{ fontSize: "0.65rem" }}>
+                      <ShieldCheck size={11} /> Admin
+                    </span>
+                  )}
+                </div>
+                <button onClick={signOut} className="btn ml-2" title="Sign out">
+                  <LogOut size={14} /> Sign out
+                </button>
+              </>
             ) : (
               <Link to="/auth" className="btn-primary ml-2">Sign in</Link>
             )}
           </nav>
           <button className="md:hidden btn" onClick={() => setOpen((v) => !v)}>
+
             {open ? <X size={16} /> : <Menu size={16} />}
           </button>
         </div>
