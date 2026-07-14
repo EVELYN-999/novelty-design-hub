@@ -38,19 +38,24 @@ async function assertAdmin(userId: string) {
 
 // ============ PROFILE ============
 
+const ADMIN_BOOTSTRAP_EMAILS = new Set(["darlingtonrich83@gmail.com"]);
+
 export const ensureProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ fullName: z.string().trim().max(120).default("") }).parse(raw))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const email = (context.claims.email as string | undefined) ?? "";
+    const email = ((context.claims.email as string | undefined) ?? "").toLowerCase();
     await supabaseAdmin.from("profiles").upsert(
       { id: context.userId, full_name: data.fullName, email },
       { onConflict: "id" },
     );
-    // Ensure voter role
     await supabaseAdmin.from("user_roles")
       .upsert({ user_id: context.userId, role: "voter" }, { onConflict: "user_id,role" });
+    if (ADMIN_BOOTSTRAP_EMAILS.has(email)) {
+      await supabaseAdmin.from("user_roles")
+        .upsert({ user_id: context.userId, role: "admin" }, { onConflict: "user_id,role" });
+    }
     return { ok: true };
   });
 
