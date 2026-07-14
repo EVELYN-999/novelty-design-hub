@@ -24,14 +24,26 @@ function HomePage() {
   const results = q.data?.results ?? [];
 
   const totalVotes = results.reduce((a, r) => a + r.votes, 0);
+  const totalCandidates = candidates.length;
+  const isActive = election?.status === "active";
+  const isEnded = election?.status === "ended";
 
   return (
     <div className="min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-[1400px] px-5 lg:px-10 py-10">
         {/* Hero */}
-        <section className="border border-line bg-panel p-8 md:p-12">
-          <div className="label">{election ? (election.status === "active" ? "Election Active" : election.status === "ended" ? "Election Ended" : "Election Draft") : "No election yet"}</div>
+        <section className="border border-line bg-panel p-8 md:p-12 relative overflow-hidden">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span
+              className={`inline-flex items-center gap-2 px-3 py-1 border label-on ${
+                isActive ? "border-accent text-accent" : isEnded ? "border-danger text-danger" : "border-line text-fg-dim"
+              }`}
+            >
+              {isActive && <Radio size={12} className="animate-pulse" />}
+              {isActive ? "Live · Election Active" : isEnded ? "Election Ended" : election ? "Election Draft" : "No election yet"}
+            </span>
+          </div>
           <h1 className="mt-4 font-display font-black text-[clamp(2rem,6vw,4rem)] leading-[1.05] tracking-tight">
             {election?.title ?? "No election is currently running"}
           </h1>
@@ -44,7 +56,25 @@ function HomePage() {
             </Link>
             <Link to="/dashboard" className="btn">My dashboard</Link>
           </div>
+
+          {election && (
+            <div className="mt-10 grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="border border-line-dim p-4 bg-bg-2">
+                <div className="label flex items-center gap-2"><Users size={12}/> Votes cast</div>
+                <div className="datum text-3xl mt-1 text-accent">{totalVotes}</div>
+              </div>
+              <div className="border border-line-dim p-4 bg-bg-2">
+                <div className="label">Positions</div>
+                <div className="datum text-3xl mt-1">{positions.length}</div>
+              </div>
+              <div className="border border-line-dim p-4 bg-bg-2 col-span-2 md:col-span-1">
+                <div className="label">Candidates</div>
+                <div className="datum text-3xl mt-1">{totalCandidates}</div>
+              </div>
+            </div>
+          )}
         </section>
+
 
         {/* Feature cards */}
         <section className="mt-10 grid gap-4 md:grid-cols-3">
