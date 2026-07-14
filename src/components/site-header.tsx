@@ -10,12 +10,19 @@ import { getMe } from "@/lib/election.functions";
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setUserId(s?.user?.id ?? null));
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id ?? null);
+      setUserEmail(data.user?.email ?? null);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => {
+      setUserId(s?.user?.id ?? null);
+      setUserEmail(s?.user?.email ?? null);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -42,6 +49,7 @@ export function SiteHeader() {
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   }
+
 
   return (
     <header className="w-full border-b border-line bg-bg sticky top-0 z-40">
