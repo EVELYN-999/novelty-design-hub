@@ -38,8 +38,6 @@ async function assertAdmin(userId: string) {
 
 // ============ PROFILE ============
 
-const ADMIN_BOOTSTRAP_EMAILS = new Set(["darlingtonrich83@gmail.com"]);
-
 export const ensureProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ fullName: z.string().trim().max(120).default("") }).parse(raw))
@@ -52,10 +50,6 @@ export const ensureProfile = createServerFn({ method: "POST" })
     );
     await supabaseAdmin.from("user_roles")
       .upsert({ user_id: context.userId, role: "voter" }, { onConflict: "user_id,role" });
-    if (ADMIN_BOOTSTRAP_EMAILS.has(email)) {
-      await supabaseAdmin.from("user_roles")
-        .upsert({ user_id: context.userId, role: "admin" }, { onConflict: "user_id,role" });
-    }
     return { ok: true };
   });
 
@@ -95,24 +89,20 @@ export const getPublicElection = createServerFn({ method: "GET" }).handler(async
   const sb = publicClient();
   const { data: active } = await sb.from("elections").select("*").eq("status", "active").order("activated_at", { ascending: false }).limit(1).maybeSingle();
   if (!active) {
-    // Try most recent
     const { data: recent } = await sb.from("elections").select("*").order("created_at", { ascending: false }).limit(1).maybeSingle();
     return { election: recent, positions: [], candidates: [], results: [] };
   }
-  const [posRes, candRes, votesRes] = await Promise.all([
+  const [posRes, candRes, tallyRes] = await Promise.all([
     sb.from("positions").select("*").eq("election_id", active.id).order("display_order"),
     sb.from("candidates").select("id, name, bio, photo_url, position_id"),
-    sb.from("votes").select("candidate_id, position_id").eq("election_id", active.id),
+    sb.from("vote_tallies").select("candidate_id, position_id, vote_count").eq("election_id", active.id),
   ]);
   const positions = posRes.data ?? [];
   const posIds = new Set(positions.map((p) => p.id));
   const candidates = (candRes.data ?? []).filter((c) => posIds.has(c.position_id));
-  const tally = new Map<string, number>();
-  for (const v of votesRes.data ?? []) {
-    tally.set(v.candidate_id, (tally.get(v.candidate_id) ?? 0) + 1);
-  }
   const results = candidates.map((c) => ({
-    candidate_id: c.id, name: c.name, position_id: c.position_id, votes: tally.get(c.id) ?? 0,
+    candidate_id: c.id, name: c.name, position_id: c.position_id,
+    votes: (tallyRes.data ?? []).find((t) => t.candidate_id === c.id)?.vote_count ?? 0,
   }));
   return { election: active, positions, candidates, results };
 });
@@ -177,7 +167,50 @@ export const castVote = createServerFn({ method: "POST" })
     return { ok: true, count: rows.length };
   });
 
+// ============ PUBLIC RESULTS (for voter tracking) ============
+
+export const getPublicResults = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: active } = await supabaseAdmin.from("elections").select("*").eq("status", "active").order("activated_at", { ascending: false }).limit(1).maybeSingle();
+  if (!active) {
+    const { data: recent } = await supabaseAdmin.from("elections").select("*").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    return { election: recent, positions: [], candidates: [], results: [], totalVotes: 0, totalTickets: 0 };
+  }
+  const [posRes, candRes, tallyRes, ticketRes] = await Promise.all([
+    supabaseAdmin.from("positions").select("*").eq("election_id", active.id).order("display_order"),
+    supabaseAdmin.from("candidates").select("id, name, bio, photo_url, position_id"),
+    supabaseAdmin.from("vote_tallies").select("candidate_id, position_id, vote_count").eq("election_id", active.id),
+    supabaseAdmin.from("voting_tickets").select("status").eq("election_id", active.id),
+  ]);
+  const positions = posRes.data ?? [];
+  const posIds = new Set(positions.map((p) => p.id));
+  const candidates = (candRes.data ?? []).filter((c) => posIds.has(c.position_id));
+  const results = candidates.map((c) => ({
+    candidate_id: c.id, name: c.name, position_id: c.position_id,
+    votes: Number((tallyRes.data ?? []).find((t) => t.candidate_id === c.id)?.vote_count ?? 0),
+  }));
+  const tickets = ticketRes.data ?? [];
+  return {
+    election: active, positions, candidates, results,
+    totalTickets: tickets.length,
+    totalVotes: tickets.filter((t) => t.status === "used").length,
+  };
+});
+
 // ============ ADMIN ============
+
+export const adminGetElectionHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("election_history")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { history: data ?? [] };
+  });
 
 export const adminListElections = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -229,12 +262,13 @@ export const adminCreateElection = createServerFn({ method: "POST" })
   .inputValidator((raw) => z.object({
     title: z.string().trim().min(3).max(120),
     description: z.string().trim().max(500).default(""),
+    electionType: z.enum(["general","executive","board","union","departmental","committee","other"]).default("general"),
   }).parse(raw))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: created, error } = await supabaseAdmin.from("elections")
-      .insert({ title: data.title, description: data.description }).select().single();
+      .insert({ title: data.title, description: data.description, election_type: data.electionType }).select().single();
     if (error) throw new Error(error.message);
     return { election: created };
   });
@@ -398,10 +432,16 @@ export const adminIssueTickets = createServerFn({ method: "POST" })
     const skip = new Set((existing ?? []).map((e) => e.user_id));
     const toInsert = data.userIds
       .filter((u) => !skip.has(u))
-      .map((u) => ({ election_id: data.electionId, user_id: u, code: genCode(8), status: "active" as const }));
+      .map((u) => ({ election_id: data.electionId, user_id: u, code: genCode(8), status: "active" as const, issued_by: context.userId }));
     if (toInsert.length === 0) return { issued: 0, skipped: skip.size };
-    const { error } = await supabaseAdmin.from("voting_tickets").insert(toInsert);
+    const { data: inserted, error } = await supabaseAdmin.from("voting_tickets").insert(toInsert).select("id, election_id, user_id");
     if (error) throw new Error(error.message);
+    // Audit log
+    if (inserted && inserted.length > 0) {
+      await supabaseAdmin.from("ticket_audit_log").insert(
+        inserted.map((t) => ({ ticket_id: t.id, election_id: t.election_id, user_id: t.user_id, action: "issued", actor_id: context.userId }))
+      );
+    }
     return { issued: toInsert.length, skipped: skip.size };
   });
 
@@ -417,11 +457,46 @@ export const adminIssueAllTickets = createServerFn({ method: "POST" })
     ]);
     const have = new Set((existing ?? []).map((e) => e.user_id));
     const rows = (users ?? []).filter((u) => !have.has(u.id))
-      .map((u) => ({ election_id: data.electionId, user_id: u.id, code: genCode(8), status: "active" as const }));
+      .map((u) => ({ election_id: data.electionId, user_id: u.id, code: genCode(8), status: "active" as const, issued_by: context.userId }));
     if (rows.length === 0) return { issued: 0 };
-    const { error } = await supabaseAdmin.from("voting_tickets").insert(rows);
+    const { data: inserted, error } = await supabaseAdmin.from("voting_tickets").insert(rows).select("id, election_id, user_id");
     if (error) throw new Error(error.message);
+    if (inserted && inserted.length > 0) {
+      await supabaseAdmin.from("ticket_audit_log").insert(
+        inserted.map((t) => ({ ticket_id: t.id, election_id: t.election_id, user_id: t.user_id, action: "issued", actor_id: context.userId }))
+      );
+    }
     return { issued: rows.length };
+  });
+
+export const adminPromoteUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ userId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    if (data.userId === context.userId) throw new Error("You cannot change your own role.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("user_roles")
+      .insert({ user_id: data.userId, role: "admin" });
+    if (error && !error.message.includes("duplicate")) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminDemoteUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ userId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    if (data.userId === context.userId) throw new Error("You cannot remove your own admin role.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Ensure at least one admin remains
+    const { count } = await supabaseAdmin.from("user_roles")
+      .select("id", { count: "exact", head: true }).eq("role", "admin");
+    if ((count ?? 0) <= 1) throw new Error("Cannot remove the last admin.");
+    const { error } = await supabaseAdmin.from("user_roles")
+      .delete().eq("user_id", data.userId).eq("role", "admin");
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const adminRevokeTicket = createServerFn({ method: "POST" })
@@ -430,8 +505,15 @@ export const adminRevokeTicket = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("voting_tickets")
-      .update({ status: "terminated" }).eq("id", data.ticketId);
+    const { data: ticket, error } = await supabaseAdmin.from("voting_tickets")
+      .update({ status: "terminated" }).eq("id", data.ticketId).select("id, election_id, user_id").single();
     if (error) throw new Error(error.message);
+    if (ticket) {
+      await supabaseAdmin.from("ticket_audit_log").insert({
+        ticket_id: ticket.id, election_id: ticket.election_id, user_id: ticket.user_id,
+        action: "revoked", actor_id: context.userId,
+        detail: { reason: "admin_revoked" },
+      });
+    }
     return { ok: true };
   });

@@ -56,13 +56,16 @@ export function SiteHeader() {
       <div className="mx-auto max-w-[1400px]">
         <div className="flex items-center gap-3 px-4 py-1.5 border-b border-line-dim label">
           <Radio size={12} className="text-accent animate-pulse" />
-          <span>Election Node — Secure Ballot System</span>
+          <span>VoteWise — Secure Ballot System</span>
+          {!userId && (
+            <span className="ml-auto text-fg-mute text-xs hidden sm:block">Sign up to participate in the election</span>
+          )}
         </div>
         <div className="px-5 lg:px-10 py-5 flex items-center justify-between gap-4">
           <Link to="/" className="flex items-baseline gap-3">
             <span className="mono text-accent text-xl">◼</span>
             <span className="font-display text-2xl md:text-3xl font-black tracking-tight leading-none">
-              ELECTION<span className="text-accent">/</span>NODE
+              VOTE<span className="text-accent">WISE</span>
             </span>
           </Link>
           <nav className="hidden md:flex items-center gap-1">
@@ -93,7 +96,7 @@ export function SiteHeader() {
                 </button>
               </>
             ) : (
-              <Link to="/auth" className="btn-primary ml-2">Sign in</Link>
+              <Link to="/auth" className="btn-primary ml-2">Sign up</Link>
             )}
           </nav>
           <button className="md:hidden btn" onClick={() => setOpen((v) => !v)}>
@@ -120,7 +123,7 @@ export function SiteHeader() {
                 <LogOut size={14} /> Sign out
               </button>
             ) : (
-              <Link to="/auth" onClick={() => setOpen(false)} className="btn-primary mt-2">Sign in</Link>
+              <Link to="/auth" onClick={() => setOpen(false)} className="btn-primary mt-2">Sign up</Link>
             )}
           </div>
         )}
@@ -133,7 +136,7 @@ export function SiteFooter() {
   return (
     <footer className="mt-24 border-t border-line bg-bg">
       <div className="mx-auto max-w-[1400px] px-5 lg:px-10 py-8 flex flex-wrap justify-between gap-4 label">
-        <span>ELECTION/NODE · Secure Ballot System</span>
+        <span>VOTEWISE · Secure Ballot System</span>
         <span>Built on hash-verified records</span>
       </div>
     </footer>

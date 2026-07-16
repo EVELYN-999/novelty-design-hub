@@ -52,16 +52,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Election/Node — Secure Ballot System" },
+      { title: "VoteWise — Secure Ballot System" },
       { name: "description", content: "Run secure, verifiable elections. Admin-controlled elections with issued voting tickets and live results." },
-      { property: "og:title", content: "Election/Node — Secure Ballot System" },
+      { property: "og:title", content: "VoteWise — Secure Ballot System" },
       { property: "og:description", content: "Admin-managed elections, issued voting tickets, live analytics." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/LOGO.png", type: "image/png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
